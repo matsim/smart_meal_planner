@@ -38,16 +38,25 @@ def create_weekly_plan(
     if len(recipes_db) < user.daily_meals_count * 2: # Au moins quelques recettes
          raise HTTPException(status_code=400, detail="Pas assez de recettes en base pour générer un plan.")
     
+    import random
     candidates = []
-    for r in recipes_db:
-        # On estime les macros d'une recette (pour la démo on fix arbitrairement si vide)
-        # En prod: il faut calculer la somme exacte depuis ingredients
-        kcal = 500.0 # Biais de démo, en vrai r.calcul_kcal()
-        prot = 30.0
-        fat = 15.0
-        carb = 60.0
-        is_score = r.satiety_index or 50.0 # Score moyen si manquant
-        candidates.append(RecipeCandidate(r.id, r.name, kcal, prot, fat, carb, is_score))
+    # Seed de variation pour couvrir différentes tailles et profils de repas
+    for idx, r in enumerate(recipes_db):
+        multiplier = 0.8 + (idx % 10) * 0.1  # de 0.8 à 1.7
+        base_kcal = 500.0 * multiplier
+        
+        # Varier la répartition pour que PuLP ait des leviers (Plats pro-prot, pro-fat, pro-carb...)
+        random.seed(r.id) # Consistance pour le même plat
+        prot_pct = random.uniform(0.15, 0.45) # 15 à 45% de pref
+        fat_pct = random.uniform(0.20, 0.40)  # 20 à 40% de fat
+        carb_pct = 1.0 - prot_pct - fat_pct
+        
+        prot = (base_kcal * prot_pct) / 4.0
+        fat = (base_kcal * fat_pct) / 9.0
+        carb = (base_kcal * carb_pct) / 4.0
+        
+        is_score = r.satiety_index or (50.0 * multiplier)
+        candidates.append(RecipeCandidate(r.id, r.name, base_kcal, prot, fat, carb, is_score))
 
     # 3. Lancer le Solveur PuLP
     result = generate_weekly_plan(
@@ -108,6 +117,40 @@ from app.schemas.planner import ShoppingListResponse, ShoppingListItem, Alternat
 from app.models.recipe import RecipeIngredient as IngredientModel
 from app.models.food import Food as FoodModel
 from collections import defaultdict
+
+@router.get("/{plan_id}")
+def get_plan(plan_id: int, db: Session = Depends(get_db)):
+    plan = db.query(MealPlanModel).filter(MealPlanModel.id == plan_id).first()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan non trouvé.")
+        
+    # Format the meals grouping by date
+    days = defaultdict(list)
+    for meal in plan.meals:
+        recipe_data = None
+        if meal.recipe_id:
+            recipe = db.query(RecipeModel).filter(RecipeModel.id == meal.recipe_id).first()
+            if recipe:
+                recipe_data = {
+                    "id": recipe.id,
+                    "name": recipe.name,
+                    "type": recipe.type.value if recipe.type else "N/A",
+                }
+        
+        days[str(meal.date)].append({
+            "id": meal.id,
+            "type": meal.type.value if meal.type else "N/A",
+            "recipe": recipe_data
+        })
+        
+    return {
+        "id": plan.id,
+        "target_kcal": plan.target_kcal,
+        "achieved_kcal": plan.achieved_kcal,
+        "start_date": plan.start_date,
+        "end_date": plan.end_date,
+        "days": dict(days)
+    }
 
 @router.get("/{plan_id}/shopping-list", response_model=ShoppingListResponse)
 def get_shopping_list(

@@ -1,0 +1,89 @@
+﻿
+> frontend@0.0.0 dev
+> vite
+
+npm : [33mYou are using 
+Node.js 20.9.0. Vite 
+requires Node.js version 
+20.19+ or 22.12+. Please 
+upgrade your Node.js 
+version.[39m
+Au caractère Ligne:1 : 74
++ ... gravity\scratch\smart
+_meal_planner\frontend; 
+npm run dev 2>&1 | Out-F 
+...
++                          
+                        
+~~~~~~~~~~~~~~~~
+    + CategoryInfo         
+     : NotSpecified: ([3  
+  3mYou are us...s versi   
+ on.[39m:String) [], R    
+emoteException
+    + FullyQualifiedErrorI 
+   d : NativeCommandError
+ 
+[31merror when starting 
+dev server:
+TypeError: crypto.hash is 
+not a function
+    at getHash (file:///C:/
+Users/Mat/.gemini/antigravi
+ty/scratch/smart_meal_plann
+er/frontend/node_modules/vi
+te/dist/node/chunks/config.
+js:2444:19)
+    at getLockfileHash (fil
+e:///C:/Users/Mat/.gemini/a
+ntigravity/scratch/smart_me
+al_planner/frontend/node_mo
+dules/vite/dist/node/chunks
+/config.js:32383:9)
+    at getDepHash (file:///
+C:/Users/Mat/.gemini/antigr
+avity/scratch/smart_meal_pl
+anner/frontend/node_modules
+/vite/dist/node/chunks/conf
+ig.js:32386:23)
+    at 
+initDepsOptimizerMetadata (
+file:///C:/Users/Mat/.gemin
+i/antigravity/scratch/smart
+_meal_planner/frontend/node
+_modules/vite/dist/node/chu
+nks/config.js:31845:53)
+    at createDepsOptimizer 
+(file:///C:/Users/Mat/.gemi
+ni/antigravity/scratch/smar
+t_meal_planner/frontend/nod
+e_modules/vite/dist/node/ch
+unks/config.js:34033:17)
+    at new DevEnvironment (
+file:///C:/Users/Mat/.gemin
+i/antigravity/scratch/smart
+_meal_planner/frontend/node
+_modules/vite/dist/node/chu
+nks/config.js:34807:109)
+    at Object.defaultCreate
+ClientDevEnvironment [as 
+createEnvironment] (file://
+/C:/Users/Mat/.gemini/antig
+ravity/scratch/smart_meal_p
+lanner/frontend/node_module
+s/vite/dist/node/chunks/con
+fig.js:35219:9)
+    at file:///C:/Users/Mat
+/.gemini/antigravity/scratc
+h/smart_meal_planner/fronte
+nd/node_modules/vite/dist/n
+ode/chunks/config.js:25390:
+52
+    at Array.map 
+(<anonymous>)
+    at _createServer (file:
+///C:/Users/Mat/.gemini/ant
+igravity/scratch/smart_meal
+_planner/frontend/node_modu
+les/vite/dist/node/chunks/c
+onfig.js:25389:58)[39m
