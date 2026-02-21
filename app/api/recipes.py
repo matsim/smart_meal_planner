@@ -54,6 +54,19 @@ def create_recipe(
     
     return db_recipe
 
+@router.get("/", response_model=List[Recipe])
+def get_all_recipes(
+    *,
+    db: Session = Depends(get_db),
+    skip: int = 0,
+    limit: int = 100
+) -> Any:
+    """
+    Récupère la liste de toutes les recettes pour la Bibliothèque Globale.
+    """
+    recipes = db.query(RecipeModel).offset(skip).limit(limit).all()
+    return recipes
+
 @router.get("/{recipe_id}", response_model=Recipe)
 def read_recipe(
     *,

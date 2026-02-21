@@ -2,9 +2,40 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/client';
 
+interface FoodOption {
+    id: number;
+    name: string;
+}
+
 const Onboarding: React.FC = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+
+    // States for Exclusions
+    const [foods, setFoods] = useState<FoodOption[]>([]);
+    const [exclusions, setExclusions] = useState<FoodOption[]>([]);
+    const [selectedExclusion, setSelectedExclusion] = useState<string>('');
+
+    // Load available foods on mount
+    React.useEffect(() => {
+        apiClient.get('/foods/?limit=1000')
+            .then(res => setFoods(res.data))
+            .catch(err => console.error(err));
+    }, []);
+
+    const addExclusion = () => {
+        if (!selectedExclusion) return;
+        const food = foods.find(f => f.id === parseInt(selectedExclusion));
+        if (food && !exclusions.some(e => e.id === food.id)) {
+            setExclusions([...exclusions, food]);
+        }
+        setSelectedExclusion('');
+    };
+
+    const removeExclusion = (index: number) => {
+        setExclusions(prev => prev.filter((_, i) => i !== index));
+    };
+
     const [formData, setFormData] = useState({
         email: '',
         age: 30,
@@ -33,6 +64,11 @@ const Onboarding: React.FC = () => {
             // Create user
             const userRes = await apiClient.post('/users/', formData);
             const userId = userRes.data.id;
+
+            // Push exclusions
+            for (const exc of exclusions) {
+                await apiClient.post(`/users/${userId}/constraints`, { food_id: exc.id });
+            }
 
             // Store user id in local storage
             localStorage.setItem('user_id', userId.toString());
@@ -96,13 +132,43 @@ const Onboarding: React.FC = () => {
                     </select>
                 </div>
 
-                <div className="input-group">
+                <div className="input-group" style={{ marginBottom: '2rem' }}>
                     <label className="input-label">Objectif</label>
                     <select className="input-field" name="objective" value={formData.objective} onChange={handleChange}>
                         <option value="weight_loss">Perte de Poids (-500 kcal)</option>
                         <option value="maintenance">Maintien (Équilibre)</option>
                         <option value="muscle_gain">Prise de Masse (+300 kcal)</option>
                     </select>
+                </div>
+
+                {/* Section Exclusions */}
+                <div className="glass-card mb-8" style={{ padding: '1.5rem', border: '1px solid var(--border-glass)' }}>
+                    <h3 style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>Exclusions Alimentaires</h3>
+                    <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Sélectionnez les aliments que vous ne souhaitez pas voir apparaitre dans vos repas (Allergies, dégoûts).</p>
+
+                    <ul style={{ listStyleType: 'none', padding: 0, marginBottom: '1rem' }}>
+                        {exclusions.map((exc, idx) => (
+                            <li key={idx} className="flex justify-between items-center" style={{ padding: '0.5rem', background: 'rgba(0,0,0,0.2)', marginBottom: '0.5rem', borderRadius: 'var(--radius-sm)' }}>
+                                <span>{exc.name}</span>
+                                <button type="button" onClick={() => removeExclusion(idx)} style={{ color: 'var(--accent-danger)', background: 'transparent', border: 'none', cursor: 'pointer' }}>✖</button>
+                            </li>
+                        ))}
+                    </ul>
+
+                    <div className="flex gap-2">
+                        <select
+                            className="input-field"
+                            style={{ flex: 1 }}
+                            value={selectedExclusion}
+                            onChange={e => setSelectedExclusion(e.target.value)}
+                        >
+                            <option value="">-- Ajouter une exclusion --</option>
+                            {foods.map(f => (
+                                <option key={f.id} value={f.id}>{f.name}</option>
+                            ))}
+                        </select>
+                        <button type="button" className="btn btn-secondary" onClick={addExclusion}>Ajouter</button>
+                    </div>
                 </div>
 
                 <div className="input-group" style={{ marginBottom: '2rem' }}>

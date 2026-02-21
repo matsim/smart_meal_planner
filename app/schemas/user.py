@@ -24,6 +24,21 @@ class UserPreferences(UserPreferencesBase):
     class Config:
         from_attributes = True
 
+# --- Contraintes / Exclusions Alimentaires ---
+
+class DietaryConstraintBase(BaseModel):
+    food_id: int
+
+class DietaryConstraintCreate(DietaryConstraintBase):
+    pass
+
+class DietaryConstraint(DietaryConstraintBase):
+    id: int
+    user_id: int
+    
+    class Config:
+        from_attributes = True
+
 # --- Utilisateur ---
 
 class UserBase(BaseModel):

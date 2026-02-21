@@ -87,3 +87,65 @@ def read_metabolic_profile(
          )
          
     return calculate_metabolic_profile(user)
+
+from app.models.user import DietaryConstraint as ConstraintModel
+from app.schemas.user import DietaryConstraint, DietaryConstraintCreate
+
+@router.get("/{user_id}/constraints", response_model=List[DietaryConstraint])
+def read_user_constraints(
+    *,
+    db: Session = Depends(get_db),
+    user_id: int,
+) -> Any:
+    """Récupère les exclusions alimentaires (food_ids) de l'utilisateur."""
+    user = db.query(UserModel).filter(UserModel.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé.")
+    return user.constraints
+
+@router.post("/{user_id}/constraints", response_model=DietaryConstraint)
+def add_user_constraint(
+    *,
+    db: Session = Depends(get_db),
+    user_id: int,
+    constraint_in: DietaryConstraintCreate
+) -> Any:
+    """Ajoute un aliment exclu aux contraintes de l'utilisateur."""
+    user = db.query(UserModel).filter(UserModel.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé.")
+        
+    # Vérifier l'existence pour éviter les doublons
+    existing = db.query(ConstraintModel).filter(
+        ConstraintModel.user_id == user_id, 
+        ConstraintModel.food_id == constraint_in.food_id
+    ).first()
+    
+    if existing:
+        return existing
+        
+    db_obj = ConstraintModel(user_id=user_id, food_id=constraint_in.food_id)
+    db.add(db_obj)
+    db.commit()
+    db.refresh(db_obj)
+    return db_obj
+
+@router.delete("/{user_id}/constraints/{food_id}")
+def remove_user_constraint(
+    *,
+    db: Session = Depends(get_db),
+    user_id: int,
+    food_id: int
+) -> Any:
+    """Supprime un aliment des exclusions de l'utilisateur."""
+    constraint = db.query(ConstraintModel).filter(
+        ConstraintModel.user_id == user_id,
+        ConstraintModel.food_id == food_id
+    ).first()
+    
+    if not constraint:
+        raise HTTPException(status_code=404, detail="Contrainte non trouvée.")
+        
+    db.delete(constraint)
+    db.commit()
+    return {"success": True}

@@ -37,7 +37,23 @@ const RecipeEditor: React.FC = () => {
             .then(res => setFoods(res.data))
             .catch(err => console.error("Error fetching foods:", err));
 
-        // 2. If edit mode, fetch existing recipe
+        // 2. Intercept Scraped data
+        const searchParams = new URLSearchParams(window.location.search);
+        if (searchParams.get('fromScraper') === 'true') {
+            const raw = sessionStorage.getItem('scrapedRecipe');
+            if (raw) {
+                try {
+                    const parsed = JSON.parse(raw);
+                    setName(parsed.name || '');
+                    setDescription(parsed.description || '');
+                    // instructions/yield are in schema but our MVP V1 Drops them
+                    // Can keep them in a text area if we add it back.
+                } catch (e) { }
+                sessionStorage.removeItem('scrapedRecipe');
+            }
+        }
+
+        // 3. If edit mode, fetch existing recipe
         if (isEditing) {
             apiClient.get(`/recipes/${id}`)
                 .then(res => {

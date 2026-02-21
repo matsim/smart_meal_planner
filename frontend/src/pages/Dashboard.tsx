@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import apiClient from '../api/client';
 
 interface MetabolicProfile {
@@ -61,9 +61,23 @@ const Dashboard: React.FC = () => {
             return;
         }
 
+        // Fetch User Profile
         apiClient.get(`/users/${userId}/metabolic-profile`)
             .then(res => setProfile(res.data))
             .catch(err => console.error("Could not fetch profile", err));
+
+        // Autoload latest plan if exists
+        apiClient.get(`/planner/users/${userId}/latest`)
+            .then(res => {
+                setPlanId(res.data.id);
+                setPlanData(res.data);
+            })
+            .catch(err => {
+                if (err.response?.status !== 404) {
+                    console.error("Could not fetch latest plan", err);
+                }
+            });
+
     }, [userId, navigate]);
 
     const fetchPlanDetails = async (id: number) => {
@@ -105,6 +119,39 @@ const Dashboard: React.FC = () => {
             setShoppingList(res.data);
         } catch (err) {
             console.error(err);
+        }
+    };
+
+    // Option: Meal Substitution
+    const [selectedMeal, setSelectedMeal] = useState<MealData | null>(null);
+    const [alternatives, setAlternatives] = useState<any[]>([]);
+    const [loadingAlts, setLoadingAlts] = useState(false);
+
+    const handleOpenSwap = async (meal: MealData) => {
+        setSelectedMeal(meal);
+        setLoadingAlts(true);
+        try {
+            const res = await apiClient.get(`/planner/meals/${meal.id}/alternatives`);
+            setAlternatives(res.data);
+        } catch (err) {
+            console.error("Could not fetch alternatives", err);
+        } finally {
+            setLoadingAlts(false);
+        }
+    };
+
+    const handleSwapMeal = async (newRecipeId: number) => {
+        if (!selectedMeal || !planId) return;
+        try {
+            await apiClient.put(`/planner/meals/${selectedMeal.id}`, { recipe_id: newRecipeId });
+            // Refresh plan after swapping
+            await fetchPlanDetails(planId);
+            setSelectedMeal(null);
+            setAlternatives([]);
+            alert("Repas modifié avec succès !");
+        } catch (err) {
+            console.error("Error swapping meal", err);
+            alert("Erreur lors du changement de repas.");
         }
     };
 
@@ -168,13 +215,60 @@ const Dashboard: React.FC = () => {
                                 <div className="flex flex-col gap-2">
                                     {meals.map(meal => (
                                         <div key={meal.id} style={{ background: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: 'var(--radius-sm)' }}>
-                                            <div style={{ fontSize: '0.8rem', color: 'var(--accent-secondary)' }}>{meal.type}</div>
-                                            <div style={{ fontWeight: 500 }}>{meal.recipe ? meal.recipe.name : 'Libre'}</div>
+                                            <div className="flex justify-between items-center">
+                                                <div style={{ fontSize: '0.8rem', color: 'var(--accent-secondary)' }}>{meal.type.toUpperCase()}</div>
+                                                <button
+                                                    onClick={() => handleOpenSwap(meal)}
+                                                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem', textDecoration: 'underline' }}>
+                                                    Changer
+                                                </button>
+                                            </div>
+                                            {meal.recipe ? (
+                                                <Link to={`/recipes/${meal.recipe.id}`} style={{ fontWeight: 500, display: 'block', marginTop: '0.2rem' }}>
+                                                    {meal.recipe.name}
+                                                </Link>
+                                            ) : (
+                                                <div style={{ fontWeight: 500, marginTop: '0.2rem' }}>Libre</div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
                             </div>
                         ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de changement de recette */}
+            {selectedMeal && (
+                <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+                    <div className="glass-card animate-fade-in" style={{ padding: '2rem', maxWidth: '500px', width: '100%' }}>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 style={{ color: 'var(--accent-primary)' }}>Alternatives pour ce repas</h3>
+                            <button onClick={() => setSelectedMeal(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '1.5rem', cursor: 'pointer' }}>×</button>
+                        </div>
+
+                        {loadingAlts ? (
+                            <div className="text-center">Recherche d'alternatives aux macros similaires...</div>
+                        ) : (
+                            <div className="flex flex-col gap-3">
+                                {alternatives.length === 0 ? (
+                                    <p>Aucune alternative trouvée dans la même gamme de calories.</p>
+                                ) : (
+                                    alternatives.map((alt, idx) => (
+                                        <div key={idx} className="flex justify-between items-center" style={{ padding: '0.8rem', background: 'rgba(255,255,255,0.05)', borderRadius: 'var(--radius-sm)' }}>
+                                            <div>
+                                                <div style={{ fontWeight: 'bold' }}>{alt.recipe_name}</div>
+                                                <div style={{ fontSize: '0.8rem', color: 'var(--accent-secondary)' }}>Match Macro: {alt.match_score}%</div>
+                                            </div>
+                                            <button className="btn btn-primary" style={{ padding: '0.4rem 0.8rem' }} onClick={() => handleSwapMeal(alt.recipe_id)}>
+                                                Choisir
+                                            </button>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

@@ -33,15 +33,27 @@ def create_weekly_plan(
         raise HTTPException(status_code=400, detail="Profil métabolique incomplet.")
 
     # 2. Filtrer les Recettes (Exclusions)
-    # TODO: Pour la V1 simple, on prend toutes les recettes globales
     recipes_db = db.query(RecipeModel).all()
-    if len(recipes_db) < user.daily_meals_count * 2: # Au moins quelques recettes
-         raise HTTPException(status_code=400, detail="Pas assez de recettes en base pour générer un plan.")
+    user_constraints = [c.food_id for c in user.constraints if c.food_id is not None]
+    
+    valid_recipes = []
+    for r in recipes_db:
+        # Check if any ingredient is in constraints
+        has_constraint = False
+        for ing in r.ingredients:
+            if ing.food_id in user_constraints:
+                has_constraint = True
+                break
+        if not has_constraint:
+            valid_recipes.append(r)
+            
+    if len(valid_recipes) < user.daily_meals_count * 2: 
+         raise HTTPException(status_code=400, detail="Pas assez de recettes valides trouvées après avoir appliqué vos exclusions (trop restrictif).")
     
     import random
     candidates = []
     # Seed de variation pour couvrir différentes tailles et profils de repas
-    for idx, r in enumerate(recipes_db):
+    for idx, r in enumerate(valid_recipes):
         multiplier = 0.8 + (idx % 10) * 0.1  # de 0.8 à 1.7
         base_kcal = 500.0 * multiplier
         
@@ -117,6 +129,40 @@ from app.schemas.planner import ShoppingListResponse, ShoppingListItem, Alternat
 from app.models.recipe import RecipeIngredient as IngredientModel
 from app.models.food import Food as FoodModel
 from collections import defaultdict
+
+@router.get("/users/{user_id}/latest")
+def get_latest_plan(user_id: int, db: Session = Depends(get_db)):
+    """Récupère le dernier plan généré par l'utilisateur (persistance Dashboard)"""
+    plan = db.query(MealPlanModel).filter(MealPlanModel.user_id == user_id).order_by(MealPlanModel.start_date.desc(), MealPlanModel.id.desc()).first()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Aucun plan trouvé pour cet utilisateur.")
+    
+    days = defaultdict(list)
+    for meal in plan.meals:
+        recipe_data = None
+        if meal.recipe_id:
+            recipe = db.query(RecipeModel).filter(RecipeModel.id == meal.recipe_id).first()
+            if recipe:
+                recipe_data = {
+                    "id": recipe.id,
+                    "name": recipe.name,
+                    "type": recipe.type.value if recipe.type else "N/A",
+                }
+        
+        days[str(meal.date)].append({
+            "id": meal.id,
+            "type": meal.type.value if meal.type else "N/A",
+            "recipe": recipe_data
+        })
+        
+    return {
+        "id": plan.id,
+        "target_kcal": plan.target_kcal,
+        "achieved_kcal": plan.achieved_kcal,
+        "start_date": plan.start_date,
+        "end_date": plan.end_date,
+        "days": dict(days)
+    }
 
 @router.get("/{plan_id}")
 def get_plan(plan_id: int, db: Session = Depends(get_db)):
@@ -233,3 +279,32 @@ def get_meal_alternatives(
     # Tri par score décroissant et limite top 5
     results.sort(key=lambda x: x.match_score, reverse=True)
     return results[:5]
+
+from pydantic import BaseModel
+
+class MealReplaceRequest(BaseModel):
+    recipe_id: int
+
+@router.put("/meals/{meal_id}")
+def replace_meal(
+    meal_id: int,
+    request: MealReplaceRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Remplace la recette assignée à un repas spécifique du plan.
+    Sert à la fonctionnalité d'édition unitaire par l'utilisateur.
+    """
+    meal = db.query(MealModel).filter(MealModel.id == meal_id).first()
+    if not meal:
+        raise HTTPException(status_code=404, detail="Repas introuvable.")
+        
+    recipe = db.query(RecipeModel).filter(RecipeModel.id == request.recipe_id).first()
+    if not recipe:
+        raise HTTPException(status_code=404, detail="Recette de remplacement introuvable.")
+        
+    # Validation basique: on remplace un ID par un autre
+    meal.recipe_id = recipe.id
+    db.commit()
+    
+    return {"success": True, "message": "Repas mis à jour avec la nouvelle recette."}
