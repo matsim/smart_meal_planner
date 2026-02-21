@@ -1,6 +1,10 @@
 import { Routes, Route, Link } from 'react-router-dom';
 import Onboarding from './pages/Onboarding';
 import Dashboard from './pages/Dashboard';
+import RecipeLibrary from './pages/RecipeLibrary';
+import RecipeDetail from './pages/RecipeDetail';
+import RecipeEditor from './pages/RecipeEditor';
+import FoodLibrary from './pages/FoodLibrary';
 
 function App() {
   return (
@@ -11,9 +15,11 @@ function App() {
             <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontFamily: 'var(--font-heading)' }}>S</div>
             <span style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>SmartMeal Planner</span>
           </Link>
-          <div className="flex gap-4">
-            <Link to="/" className="btn btn-secondary">Accueil</Link>
-            <Link to="/onboarding" className="btn btn-primary">Mon Profil</Link>
+          <div className="flex gap-4 items-center">
+            <Link to="/foods" className="btn btn-secondary" style={{ border: 'none', background: 'transparent' }}>Aliments</Link>
+            <Link to="/recipes" className="btn btn-secondary" style={{ border: 'none', background: 'transparent' }}>Recettes</Link>
+            <Link to="/onboarding" className="btn btn-secondary">Mon Profil</Link>
+            <Link to="/dashboard" className="btn btn-primary">Mon Semainier</Link>
           </div>
         </div>
       </nav>
@@ -33,6 +39,11 @@ function App() {
           } />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/foods" element={<FoodLibrary />} />
+          <Route path="/recipes" element={<RecipeLibrary />} />
+          <Route path="/recipes/new" element={<RecipeEditor />} />
+          <Route path="/recipes/:id" element={<RecipeDetail />} />
+          <Route path="/recipes/:id/edit" element={<RecipeEditor />} />
         </Routes>
       </main>
     </div>
