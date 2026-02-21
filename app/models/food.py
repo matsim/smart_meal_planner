@@ -1,0 +1,30 @@
+from sqlalchemy import Column, Integer, String, Float, Boolean
+
+from app.models.base import Base
+
+class Food(Base):
+    """
+    Base de données d'aliments (type CIQUAL)
+    """
+    __tablename__ = "foods"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True, nullable=False)
+    
+    # Micronutriments essentiels et Macronutriments (pour 100g)
+    energy_kcal = Column(Float, nullable=False, default=0.0)
+    proteins_g = Column(Float, nullable=False, default=0.0)
+    carbohydrates_g = Column(Float, nullable=False, default=0.0)
+    fat_g = Column(Float, nullable=False, default=0.0)
+    fiber_g = Column(Float, nullable=False, default=0.0)
+    water_g = Column(Float, nullable=False, default=0.0)
+    
+    # tags
+    is_vegan = Column(Boolean, default=True)
+    is_vegetarian = Column(Boolean, default=True)
+    is_gluten_free = Column(Boolean, default=True)
+    is_lactose_free = Column(Boolean, default=True)
+
+    # Densité calorique (Kcal / 100g)
+    # L'hydratation post-cuisson pourra être gérée via un facteur de rendement
+    yield_factor = Column(Float, default=1.0) # ex: riz cru -> cuit = 3.0
