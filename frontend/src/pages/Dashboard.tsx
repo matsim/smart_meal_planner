@@ -198,44 +198,93 @@ const Dashboard: React.FC = () => {
                 </div>
             )}
 
-            {/* Grille Hebdomadaire */}
+            {/* Grille Hebdomadaire Redesigned */}
             {planData && (
                 <div className="mt-8 animate-fade-in">
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 style={{ color: 'var(--text-primary)' }}>Votre Semainier</h2>
-                        <button className="btn btn-secondary" onClick={fetchShoppingList}>🛒 Voir la liste de courses</button>
+                    {/* Header: Dates & Actions */}
+                    <div className="flex justify-between items-center mb-6">
+                        <div>
+                            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Plan Actuel</h2>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                                Du {new Date(planData.start_date).toLocaleDateString()} au {new Date(planData.end_date).toLocaleDateString()}
+                            </span>
+                        </div>
+                        <div className="flex gap-4">
+                            <button className="btn btn-secondary" onClick={fetchShoppingList}>
+                                <span style={{ marginRight: '0.5rem' }}>🛒</span> Grocery List
+                            </button>
+                            <button className="btn btn-primary" onClick={generatePlan} disabled={generating}>
+                                <span style={{ marginRight: '0.5rem' }}>🔄</span> {generating ? 'Generating...' : 'Regenerate Week'}
+                            </button>
+                        </div>
                     </div>
 
-                    <div className="week-grid">
-                        {Object.entries(planData.days).map(([date, meals], idx) => (
-                            <div key={date} className="glass-card" style={{ padding: '1.5rem' }}>
-                                <h3 style={{ marginBottom: '1rem', borderBottom: '1px solid var(--border-glass)', paddingBottom: '0.5rem' }}>
-                                    Jour {idx + 1} <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>({date})</span>
+                    {/* Weekly Calendar Header (Days) */}
+                    <div className="flex justify-between mb-8" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+                        {Object.keys(planData.days).map((dateStr, i) => {
+                            const dateObj = new Date(dateStr);
+                            const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
+                            const dayNum = dateObj.getDate();
+                            return (
+                                <div key={dateStr} className="text-center" style={{ flex: 1, borderTop: i === 0 ? '3px solid var(--accent-primary)' : '3px solid transparent', paddingTop: '0.5rem' }}>
+                                    <div style={{ fontSize: '0.8rem', color: i === 0 ? 'var(--accent-primary)' : 'var(--text-secondary)', fontWeight: 600 }}>{dayName}</div>
+                                    <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{dayNum}</div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Meal Rows */}
+                    {['breakfast', 'lunch', 'dinner', 'snack'].map(mealType => {
+                        // Check if at least one day has this meal type
+                        const hasThisMealType = Object.values(planData.days).some(meals =>
+                            meals.some(m => m.type === mealType)
+                        );
+
+                        if (!hasThisMealType) return null;
+
+                        return (
+                            <div key={mealType} className="mb-8">
+                                <h3 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1rem' }}>
+                                    {mealType}
                                 </h3>
-                                <div className="flex flex-col gap-2">
-                                    {meals.map(meal => (
-                                        <div key={meal.id} style={{ background: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: 'var(--radius-sm)' }}>
-                                            <div className="flex justify-between items-center">
-                                                <div style={{ fontSize: '0.8rem', color: 'var(--accent-secondary)' }}>{meal.type.toUpperCase()}</div>
-                                                <button
-                                                    onClick={() => handleOpenSwap(meal)}
-                                                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem', textDecoration: 'underline' }}>
-                                                    Changer
-                                                </button>
+                                <div className="flex gap-4" style={{ overflowX: 'auto', paddingBottom: '0.5rem' }}>
+                                    {Object.entries(planData.days).map(([date, meals]) => {
+                                        const meal = meals.find(m => m.type === mealType);
+
+                                        if (!meal) {
+                                            return (
+                                                <div key={date} className="glass-card flex items-center justify-center" style={{ flex: '0 0 calc(100% / 7 - 1rem)', minWidth: '160px', height: '180px', borderStyle: 'dashed' }}>
+                                                    <span style={{ color: 'var(--text-muted)' }}>-</span>
+                                                </div>
+                                            );
+                                        }
+
+                                        return (
+                                            <div key={meal.id} className="glass-card" style={{ flex: '0 0 calc(100% / 7 - 1rem)', minWidth: '160px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                                                {/* Placeholder Image */}
+                                                <div style={{ height: '100px', backgroundColor: '#e2e8f0', position: 'relative' }}>
+                                                    <div style={{ position: 'absolute', bottom: '8px', left: '8px', background: 'rgba(0,0,0,0.6)', color: 'white', fontSize: '0.7rem', padding: '0.2rem 0.4rem', borderRadius: '4px', fontWeight: 600 }}>
+                                                        ~ {meal.recipe ? 450 : 0} kcal
+                                                    </div>
+                                                </div>
+
+                                                <div style={{ padding: '0.75rem', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                                    <Link to={meal.recipe ? `/recipes/${meal.recipe.id}` : '#'} style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.2, marginBottom: '0.5rem' }}>
+                                                        {meal.recipe ? meal.recipe.name : 'Libre'}
+                                                    </Link>
+
+                                                    <button onClick={() => handleOpenSwap(meal)} style={{ alignSelf: 'flex-start', background: 'transparent', border: 'none', color: 'var(--accent-secondary)', fontSize: '0.8rem', cursor: 'pointer', padding: 0, fontWeight: 500 }}>
+                                                        Swap Meal ⇄
+                                                    </button>
+                                                </div>
                                             </div>
-                                            {meal.recipe ? (
-                                                <Link to={`/recipes/${meal.recipe.id}`} style={{ fontWeight: 500, display: 'block', marginTop: '0.2rem' }}>
-                                                    {meal.recipe.name}
-                                                </Link>
-                                            ) : (
-                                                <div style={{ fontWeight: 500, marginTop: '0.2rem' }}>Libre</div>
-                                            )}
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                        );
+                    })}
                 </div>
             )}
 

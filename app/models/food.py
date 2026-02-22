@@ -28,3 +28,6 @@ class Food(Base):
     # Densité calorique (Kcal / 100g)
     # L'hydratation post-cuisson pourra être gérée via un facteur de rendement
     yield_factor = Column(Float, default=1.0) # ex: riz cru -> cuit = 3.0
+    
+    # Indicateur si cet aliment a été auto-généré via scraping sans valeurs (0 kcal)
+    is_draft = Column(Boolean, default=False)

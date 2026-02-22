@@ -16,6 +16,7 @@ class FoodBase(BaseModel):
     is_lactose_free: bool = True
     
     yield_factor: float = 1.0
+    is_draft: bool = False
 
 class FoodCreate(FoodBase):
     pass

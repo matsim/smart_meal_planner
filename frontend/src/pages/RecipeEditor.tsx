@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import apiClient from '../api/client';
+import { mapScrapedIngredients } from '../utils/ingredientMapper';
 
 interface IngredientInput {
     food_id: number;
@@ -11,10 +12,12 @@ interface IngredientInput {
 interface FoodOption {
     id: number;
     name: string;
+    is_draft?: boolean;
 }
 
 const RecipeEditor: React.FC = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { id } = useParams<{ id: string }>();
     const isEditing = Boolean(id);
 
@@ -32,31 +35,56 @@ const RecipeEditor: React.FC = () => {
     const [selectedQty, setSelectedQty] = useState<number | ''>('');
 
     useEffect(() => {
-        // 1. Fetch foods for dropdown
-        apiClient.get('/foods/?limit=1000')
-            .then(res => setFoods(res.data))
-            .catch(err => console.error("Error fetching foods:", err));
-
-        // 2. Intercept Scraped data
-        const searchParams = new URLSearchParams(window.location.search);
-        if (searchParams.get('fromScraper') === 'true') {
-            const raw = sessionStorage.getItem('scrapedRecipe');
-            if (raw) {
-                try {
-                    const parsed = JSON.parse(raw);
-                    setName(parsed.name || '');
-                    setDescription(parsed.description || '');
-                    // instructions/yield are in schema but our MVP V1 Drops them
-                    // Can keep them in a text area if we add it back.
-                } catch (e) { }
-                sessionStorage.removeItem('scrapedRecipe');
+        const loadInitialData = async () => {
+            // 1. Fetch foods for dropdown
+            let loadedFoods: FoodOption[] = [];
+            try {
+                const res = await apiClient.get('/foods/?limit=1000');
+                loadedFoods = res.data;
+                setFoods(loadedFoods);
+            } catch (err) {
+                console.error("Error fetching foods:", err);
             }
-        }
 
-        // 3. If edit mode, fetch existing recipe
-        if (isEditing) {
-            apiClient.get(`/recipes/${id}`)
-                .then(res => {
+            // 2. Intercept Scraped data
+            const searchParams = new URLSearchParams(location.search);
+            if (searchParams.get('fromScraper') === 'true') {
+                const raw = sessionStorage.getItem('scrapedRecipe');
+                if (raw) {
+                    try {
+                        const parsed = JSON.parse(raw);
+                        setName(parsed.title || parsed.name || '');
+
+                        const descParts = [];
+                        if (parsed.description) descParts.push(parsed.description);
+
+                        if (parsed.ingredients && Array.isArray(parsed.ingredients)) {
+                            descParts.push("--- Ingrédients extraits ---");
+                            descParts.push(parsed.ingredients.join('\n'));
+                            descParts.push("----------------------------");
+
+                            // Map ingredients string to valid DB foods
+                            const mapped = await mapScrapedIngredients(parsed.ingredients, loadedFoods);
+                            setIngredients(mapped);
+                        }
+
+                        if (parsed.instructions) {
+                            descParts.push("--- Instructions ---");
+                            descParts.push(parsed.instructions);
+                        }
+
+                        setDescription(descParts.join('\n\n'));
+                    } catch (e) {
+                        console.error("Could not parse scraped recipe", e);
+                    }
+                    sessionStorage.removeItem('scrapedRecipe');
+                }
+            }
+
+            // 3. If edit mode, fetch existing recipe
+            if (isEditing) {
+                try {
+                    const res = await apiClient.get(`/recipes/${id}`);
                     const r = res.data;
                     setName(r.name);
                     setDescription(r.description || '');
@@ -69,10 +97,14 @@ const RecipeEditor: React.FC = () => {
                             quantity_g: ing.quantity_g
                         })));
                     }
-                })
-                .catch(err => console.error("Could not fetch recipe for edit:", err));
-        }
-    }, [id, isEditing]);
+                } catch (err) {
+                    console.error("Could not fetch recipe for edit:", err);
+                }
+            }
+        };
+
+        loadInitialData();
+    }, [id, isEditing, location.search]);
 
     const addIngredient = () => {
         if (!selectedFoodId || !selectedQty) return;
@@ -152,7 +184,14 @@ const RecipeEditor: React.FC = () => {
 
                 <div className="input-group">
                     <label className="input-label">Description (optionnelle)</label>
-                    <input className="input-field" value={description} onChange={e => setDescription(e.target.value)} placeholder="Un délicieux plat équilibré..." />
+                    <textarea
+                        className="input-field"
+                        value={description}
+                        onChange={e => setDescription(e.target.value)}
+                        placeholder="Un délicieux plat équilibré..."
+                        rows={6}
+                        style={{ fontFamily: 'inherit', resize: 'vertical' }}
+                    />
                 </div>
 
                 {/* Ingredients section */}
@@ -178,7 +217,7 @@ const RecipeEditor: React.FC = () => {
                         >
                             <option value="">-- Choisir un aliment --</option>
                             {foods.map(f => (
-                                <option key={f.id} value={f.id}>{f.name}</option>
+                                <option key={f.id} value={f.id}>{f.name} {f.is_draft ? '(Brouillon - À enrichir)' : ''}</option>
                             ))}
                         </select>
                         <input

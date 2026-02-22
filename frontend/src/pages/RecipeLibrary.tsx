@@ -52,28 +52,39 @@ const RecipeLibrary: React.FC = () => {
                 <Link to="/recipes/new" className="btn btn-secondary">+ Nouvelle Recette</Link>
             </div>
 
-            {/* Scraper Section */}
-            <div className="glass-card mb-8" style={{ padding: '1.5rem', border: '1px solid var(--accent-secondary)' }}>
-                <h3 style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>Importer depuis le web</h3>
-                <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-                    Saisissez l'URL d'une recette (ex: Marmiton, CuisineAZ) pour pré-remplir l'éditeur automatiquement grâce à l'IA.
-                </p>
-                <div className="flex gap-4">
-                    <input
-                        type="url"
-                        className="input-field"
-                        placeholder="https://www.marmiton.org/..."
-                        style={{ flex: 1 }}
-                        value={scrapeUrl}
-                        onChange={e => setScrapeUrl(e.target.value)}
-                    />
-                    <button
-                        className="btn btn-primary"
-                        onClick={handleScrape}
-                        disabled={scraping || !scrapeUrl}
-                    >
-                        {scraping ? 'Analyse...' : 'Importer'}
-                    </button>
+            {/* Scraper Section (Redesigned) */}
+            <div className="glass-card mb-8">
+                <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ color: 'var(--accent-primary)' }}>🔗</span> Import & Smart Mapping
+                    </h3>
+                </div>
+                <div style={{ padding: '2rem' }}>
+                    <div className="flex flex-col gap-2 mb-4">
+                        <label className="input-label" htmlFor="recipeUrl">Recipe Source URL</label>
+                        <div className="flex gap-4">
+                            <input
+                                id="recipeUrl"
+                                type="url"
+                                className="input-field"
+                                placeholder="Paste URL from Marmiton, CuisineAZ, etc..."
+                                style={{ flex: 1, padding: '1rem', fontSize: '1rem' }}
+                                value={scrapeUrl}
+                                onChange={e => setScrapeUrl(e.target.value)}
+                            />
+                            <button
+                                className="btn btn-primary"
+                                style={{ padding: '0 2rem', fontWeight: 600 }}
+                                onClick={handleScrape}
+                                disabled={scraping || !scrapeUrl}
+                            >
+                                {scraping ? 'Analyzing...' : 'Analyze URL'}
+                            </button>
+                        </div>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                            Our AI will automatically extract ingredients and map them to our internal nutrition database.
+                        </p>
+                    </div>
                 </div>
             </div>
 
