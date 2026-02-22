@@ -67,7 +67,7 @@ const Onboarding: React.FC = () => {
 
             // Push exclusions
             for (const exc of exclusions) {
-                await apiClient.post(`/users/${userId}/constraints`, { food_id: exc.id });
+                await apiClient.post(`/users/${userId}/exclusions`, { food_id: exc.id });
             }
 
             // Store user id in local storage

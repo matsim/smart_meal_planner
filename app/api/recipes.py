@@ -84,7 +84,7 @@ def read_recipe(
 from pydantic import HttpUrl
 from app.services.scraper import scrape_recipe_from_url
 
-@router.post("/scrape")
+@router.post("/import")
 def extract_recipe_from_url(url: HttpUrl) -> Any:
     """
     Extrait les informations brutes d'une URL de recette (Schema.org).

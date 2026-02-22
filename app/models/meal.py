@@ -16,6 +16,7 @@ class MealPlan(Base):
     # Indicateurs globaux calculés pour la semaine
     target_kcal = Column(Float, nullable=False)
     achieved_kcal = Column(Float, default=0.0)
+    target_volume_g = Column(Float, nullable=True) # Cible de volume global
     
     meals = relationship("Meal", back_populates="plan", cascade="all, delete-orphan")
 
@@ -39,6 +40,7 @@ class Meal(Base):
     
     # Si le solveur a dû ajuster certaines portions pour fitter dans les macros
     portion_factor = Column(Float, default=1.0) 
+    target_volume_g = Column(Float, nullable=True) # Cible de volume par repas
 
     plan = relationship("MealPlan", back_populates="meals")
     recipe = relationship("Recipe")

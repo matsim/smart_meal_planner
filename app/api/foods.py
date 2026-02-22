@@ -38,6 +38,18 @@ def list_foods(
         query = query.filter(FoodModel.name.ilike(f"%{search}%"))
     return query.offset(skip).limit(limit).all()
 
+@router.get("/search", response_model=List[Food])
+def search_foods(
+    q: str,
+    db: Session = Depends(get_db),
+    limit: int = 20
+) -> Any:
+    """
+    Recherche rapide d'aliments par nom (ex: pour autocomplétion).
+    """
+    query = db.query(FoodModel).filter(FoodModel.name.ilike(f"%{q}%"))
+    return query.limit(limit).all()
+
 @router.get("/{food_id}", response_model=Food)
 def read_food(
     *,

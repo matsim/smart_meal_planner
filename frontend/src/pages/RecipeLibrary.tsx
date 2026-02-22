@@ -31,7 +31,7 @@ const RecipeLibrary: React.FC = () => {
         if (!scrapeUrl) return;
         setScraping(true);
         try {
-            const res = await apiClient.post(`/recipes/scrape?url=${encodeURIComponent(scrapeUrl)}`);
+            const res = await apiClient.post(`/recipes/import?url=${encodeURIComponent(scrapeUrl)}`);
             if (res.data.success && res.data.data) {
                 // Pass scraped data via sessionStorage since it's a simple redirection
                 sessionStorage.setItem('scrapedRecipe', JSON.stringify(res.data.data));

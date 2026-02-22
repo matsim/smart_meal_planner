@@ -50,7 +50,7 @@ def test_read_metabolic_profile(client):
     user_id = resp.json()["id"]
     
     # Tester l'endpoint du profil 
-    response = client.get(f"/api/v1/users/{user_id}/metabolic-profile")
+    response = client.get(f"/api/v1/users/{user_id}/metabolisme")
     assert response.status_code == 200
     profile = response.json()
     

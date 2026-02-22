@@ -36,6 +36,7 @@ class User(Base):
     # Paramètres de planification
     daily_meals_count = Column(Integer, default=3)
     objective = Column(Enum(Objective), default=Objective.MAINTENANCE)
+    target_weekly_kcal = Column(Float, nullable=True) # cible_kcal_hebdo
     
     # Relations
     preferences = relationship("UserPreferences", back_populates="user", uselist=False)

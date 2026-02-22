@@ -285,9 +285,9 @@ from pydantic import BaseModel
 class MealReplaceRequest(BaseModel):
     recipe_id: int
 
-@router.put("/meals/{meal_id}")
+@router.post("/swap/{repas_id}")
 def replace_meal(
-    meal_id: int,
+    repas_id: int,
     request: MealReplaceRequest,
     db: Session = Depends(get_db)
 ):
@@ -295,7 +295,7 @@ def replace_meal(
     Remplace la recette assignée à un repas spécifique du plan.
     Sert à la fonctionnalité d'édition unitaire par l'utilisateur.
     """
-    meal = db.query(MealModel).filter(MealModel.id == meal_id).first()
+    meal = db.query(MealModel).filter(MealModel.id == repas_id).first()
     if not meal:
         raise HTTPException(status_code=404, detail="Repas introuvable.")
         

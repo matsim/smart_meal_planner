@@ -134,7 +134,8 @@ const RecipeEditor: React.FC = () => {
             visibility: 'global',
             ingredients_food: ingredients.map(ing => ({
                 food_id: ing.food_id,
-                quantity_g: ing.quantity_g
+                quantity_g: ing.quantity_g,
+                state: 'raw'
             }))
         };
 

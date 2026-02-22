@@ -62,7 +62,7 @@ const Dashboard: React.FC = () => {
         }
 
         // Fetch User Profile
-        apiClient.get(`/users/${userId}/metabolic-profile`)
+        apiClient.get(`/users/${userId}/metabolisme`)
             .then(res => setProfile(res.data))
             .catch(err => console.error("Could not fetch profile", err));
 
@@ -143,7 +143,7 @@ const Dashboard: React.FC = () => {
     const handleSwapMeal = async (newRecipeId: number) => {
         if (!selectedMeal || !planId) return;
         try {
-            await apiClient.put(`/planner/meals/${selectedMeal.id}`, { recipe_id: newRecipeId });
+            await apiClient.post(`/planner/swap/${selectedMeal.id}`, { recipe_id: newRecipeId });
             // Refresh plan after swapping
             await fetchPlanDetails(planId);
             setSelectedMeal(null);

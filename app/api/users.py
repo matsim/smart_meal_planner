@@ -67,7 +67,7 @@ def read_user(
     return user
 
 
-@router.get("/{user_id}/metabolic-profile", response_model=MetabolicProfile)
+@router.get("/{user_id}/metabolisme", response_model=MetabolicProfile)
 def read_metabolic_profile(
     *,
     db: Session = Depends(get_db),
@@ -88,10 +88,43 @@ def read_metabolic_profile(
          
     return calculate_metabolic_profile(user)
 
+from pydantic import BaseModel
+class MetabolicUpdateFields(BaseModel):
+    weight_kg: float = None
+    height_cm: float = None
+    age: int = None
+    target_weekly_kcal: float = None
+
+@router.put("/{user_id}/metabolisme", response_model=MetabolicProfile)
+def update_metabolic_profile(
+    *,
+    db: Session = Depends(get_db),
+    user_id: int,
+    data: MetabolicUpdateFields
+) -> Any:
+    """Met à jour les informations métaboliques (poids, taille, âge) et recalcule le profil."""
+    user = db.query(UserModel).filter(UserModel.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé.")
+        
+    if data.weight_kg is not None:
+        user.weight_kg = data.weight_kg
+    if data.height_cm is not None:
+        user.height_cm = data.height_cm
+    if data.age is not None:
+        user.age = data.age
+    if data.target_weekly_kcal is not None:
+        user.target_weekly_kcal = data.target_weekly_kcal
+        
+    db.commit()
+    db.refresh(user)
+    
+    return calculate_metabolic_profile(user)
+
 from app.models.user import DietaryConstraint as ConstraintModel
 from app.schemas.user import DietaryConstraint, DietaryConstraintCreate
 
-@router.get("/{user_id}/constraints", response_model=List[DietaryConstraint])
+@router.get("/{user_id}/exclusions", response_model=List[DietaryConstraint])
 def read_user_constraints(
     *,
     db: Session = Depends(get_db),
@@ -103,7 +136,7 @@ def read_user_constraints(
         raise HTTPException(status_code=404, detail="Utilisateur non trouvé.")
     return user.constraints
 
-@router.post("/{user_id}/constraints", response_model=DietaryConstraint)
+@router.post("/{user_id}/exclusions", response_model=DietaryConstraint)
 def add_user_constraint(
     *,
     db: Session = Depends(get_db),
@@ -130,7 +163,7 @@ def add_user_constraint(
     db.refresh(db_obj)
     return db_obj
 
-@router.delete("/{user_id}/constraints/{food_id}")
+@router.delete("/{user_id}/exclusions/{food_id}")
 def remove_user_constraint(
     *,
     db: Session = Depends(get_db),

@@ -9,6 +9,10 @@ class RecipeType(str, enum.Enum):
     SIMPLE = "simple"          # Assemblage d'aliments bruts
     MIXED = "mixed"            # Partielle (sauce) + brute
 
+class IngredientState(str, enum.Enum):
+    RAW = "raw"                # Cru
+    COOKED = "cooked"          # Cuit
+
 class RecipeVisibility(str, enum.Enum):
     GLOBAL = "global"          # Accessibe à tous
     PRIVATE = "private"        # Confiné à l'utilisateur
@@ -47,6 +51,7 @@ class RecipeIngredient(Base):
     sub_recipe_id = Column(Integer, ForeignKey("recipes.id"), nullable=True)
     
     quantity_g = Column(Float, nullable=False) # Quantité en grammes
+    state = Column(Enum(IngredientState), default=IngredientState.RAW) # état (cru/cuit)
 
     # Relations
     recipe = relationship("Recipe", foreign_keys=[recipe_id], back_populates="ingredients")
