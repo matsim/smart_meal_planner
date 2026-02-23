@@ -5,7 +5,7 @@ import apiClient from '../api/client';
 interface Ingredient {
     id: number;
     food_id: number;
-    food_name?: string; // We'll need the backend or a join to get this cleanly, or just format
+    food?: { name: string };
     quantity_g: number;
 }
 
@@ -78,7 +78,7 @@ const RecipeDetailView: React.FC = () => {
                                     <li key={ing.id} className="flex justify-between items-center" style={{ padding: '0.75rem 0', borderBottom: '1px solid var(--border-color)' }}>
                                         <div className="flex items-center gap-3">
                                             <input type="checkbox" style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }} />
-                                            <span style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>{ing.food_name || `Aliment # ${ing.food_id}`}</span>
+                                            <span style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>{ing.food?.name || `Aliment # ${ing.food_id}`}</span>
                                         </div>
                                         <strong style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{ing.quantity_g}g</strong>
                                     </li>

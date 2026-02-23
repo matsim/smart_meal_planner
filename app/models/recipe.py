@@ -50,10 +50,19 @@ class RecipeIngredient(Base):
     food_id = Column(Integer, ForeignKey("foods.id"), nullable=True)
     sub_recipe_id = Column(Integer, ForeignKey("recipes.id"), nullable=True)
     
-    quantity_g = Column(Float, nullable=False) # Quantité en grammes
+    quantity_g = Column(Float, nullable=False) # Quantité utilisée dans la recette (pour la préparation standard)
     state = Column(Enum(IngredientState), default=IngredientState.RAW) # état (cru/cuit)
+
+    # Données brutes (optionnelles) pour l'affichage UI
+    raw_quantity = Column(Float, nullable=True)
+    raw_unit = Column(String(50), nullable=True)
+
+    # Portion nommée utilisée (optionnelle) — détermine quantity_g si renseignée
+    # Ex: "1 moyen citron vert = 67g" → food_portion_id pointe vers cette portion
+    food_portion_id = Column(Integer, ForeignKey("food_portions.id"), nullable=True)
 
     # Relations
     recipe = relationship("Recipe", foreign_keys=[recipe_id], back_populates="ingredients")
     food = relationship("Food")
+    food_portion = relationship("FoodPortion")
     sub_recipe = relationship("Recipe", foreign_keys=[sub_recipe_id])

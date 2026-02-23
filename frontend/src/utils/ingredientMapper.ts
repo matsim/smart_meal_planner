@@ -1,77 +1,104 @@
-import apiClient from '../api/client';
-
 export interface FoodOption {
     id: number;
     name: string;
 }
 
 export interface MappedIngredient {
-    food_id: number;
-    food_name: string;
+    status: 'matched' | 'unresolved';
+    food_id?: number;
+    food_name?: string;
+    suggested_name?: string;
     quantity_g: number;
+    raw_quantity: number | null;
+    raw_unit: string | null;
 }
 
-export async function mapScrapedIngredients(scrapedIngredients: string[], dbFoods: FoodOption[]): Promise<MappedIngredient[]> {
+export interface ScrapedIngredient {
+    raw: string;
+    quantity: number | null;
+    unit: string | null;
+    product: string;
+}
+
+export async function mapScrapedIngredients(scrapedIngredients: ScrapedIngredient[], dbFoods: FoodOption[]): Promise<MappedIngredient[]> {
     const mapped: MappedIngredient[] = [];
 
     // Helper to normalize string for comparison
-    const normalize = (str: string) => str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    const normalize = (str: string) =>
+        str.toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "") // Enlever les accents
+            .replace(/[^a-z0-9\s]/g, " ")    // Remplacer ponctuation par des espaces
+            .trim()
+            .replace(/\s+/g, " ")
+            .split(" ")
+            .map(w => w.replace(/[sx]$/, "")) // Basic French plural stripping
+            .join(" ");
 
-    for (const scrapedLine of scrapedIngredients) {
+    for (const scraped of scrapedIngredients) {
         let matchedFood: FoodOption | null = null;
-        let quantity = 100; // Default weight
 
-        // Basic parsing: look for digits followed by 'g'
-        const qtyMatch = scrapedLine.match(/(\d+)\s*g/i);
-        if (qtyMatch) {
-            quantity = parseInt(qtyMatch[1], 10);
+        // Priorité 1 : Mettre au format correct la quantité
+        // Si l'unité est kg ou l, on convertit en g/ml (multiplié par 1000)
+        let quantity = scraped.quantity !== null && !isNaN(scraped.quantity) ? scraped.quantity : 100;
+        if (scraped.unit === 'kg' || scraped.unit === 'l' || scraped.unit === 'litre' || scraped.unit === 'litres' || scraped.unit === 'kilogramme' || scraped.unit === 'kilogrammes') {
+            quantity *= 1000;
+        } else if (scraped.unit === 'cl' || scraped.unit === 'centilitre' || scraped.unit === 'centilitres') {
+            quantity *= 10;
+        } else if (scraped.unit?.includes('cuill') || scraped.unit?.includes('c.a.s') || scraped.unit?.includes('cas')) {
+            quantity *= 15; // Approximation : 15g par cuillère à soupe
+        } else if (scraped.unit?.includes('c.a.c') || scraped.unit?.includes('cac')) {
+            quantity *= 5; // Approximation 5g par cuillère à café
         }
 
-        const normalizedLine = normalize(scrapedLine);
+        const normalizedProduct = normalize(scraped.product);
+        const productWords = normalizedProduct.split(" ").filter(w => w.length > 0);
 
         for (const dbFood of dbFoods) {
             const normalizedFoodName = normalize(dbFood.name);
-            if (normalizedLine.includes(normalizedFoodName) || normalizedFoodName.includes(normalizedLine)) {
+
+            if (normalizedProduct === normalizedFoodName) {
                 matchedFood = dbFood;
-                break; // Take the first match
+                break;
+            }
+
+            const foodNameWords = normalizedFoodName.split(" ").filter(w => w.length > 0);
+
+            const dbContainsProduct = productWords.length > 0 && productWords.every(w => foodNameWords.includes(w));
+            const productContainsDb = foodNameWords.length > 0 && foodNameWords.every(w => productWords.includes(w));
+
+            if (dbContainsProduct || productContainsDb) {
+                // Ignore dirty draft foods containing numbers (like "4 cuilleres") if they are only substring matches
+                if (/[0-9]/.test(normalizedFoodName) && productContainsDb && !/[0-9]/.test(normalizedProduct)) {
+                    continue;
+                }
+                matchedFood = dbFood;
+                break; // Take the first valid match
             }
         }
 
         if (matchedFood) {
             mapped.push({
+                status: 'matched',
                 food_id: matchedFood.id,
                 food_name: matchedFood.name,
-                quantity_g: quantity
+                quantity_g: quantity,
+                raw_quantity: scraped.quantity !== undefined ? scraped.quantity : null,
+                raw_unit: scraped.unit !== undefined ? scraped.unit : null
             });
         } else {
-            // Création asynchrone d'un aliment brouillon si non trouvé
-            // On essaie d'extraire un nom propre (en enlevant les chiffres et "de", "g")
-            let newName = scrapedLine.replace(/(\d+)\s*g/i, '').replace(/\b(?:de|des|du|la|le|un|une)\b/gi, '').trim();
+            let newName = scraped.product.trim();
             if (!newName) newName = "Ingrédient Inconnu";
 
-            // On limite la taille pour être sûr
             if (newName.length > 50) newName = newName.substring(0, 47) + "...";
 
-            try {
-                const res = await apiClient.post('/foods/', {
-                    name: newName.charAt(0).toUpperCase() + newName.slice(1),
-                    energy_kcal: 0,
-                    proteins_g: 0,
-                    carbohydrates_g: 0,
-                    fat_g: 0,
-                    fiber_g: 0,
-                    water_g: 0,
-                    is_draft: true
-                });
-                const newFood = res.data;
-                mapped.push({
-                    food_id: newFood.id,
-                    food_name: newFood.name,
-                    quantity_g: quantity
-                });
-            } catch (err) {
-                console.error("Impossible de créer l'aliment brouillon:", newName, err);
-            }
+            mapped.push({
+                status: 'unresolved',
+                suggested_name: newName.charAt(0).toUpperCase() + newName.slice(1),
+                quantity_g: quantity,
+                raw_quantity: scraped.quantity !== undefined ? scraped.quantity : null,
+                raw_unit: scraped.unit !== undefined ? scraped.unit : null
+            });
         }
     }
 

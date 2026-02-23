@@ -5,9 +5,12 @@ from app.schemas.food import Food
 
 class RecipeIngredientBase(BaseModel):
     quantity_g: float
+    raw_quantity: Optional[float] = None
+    raw_unit: Optional[str] = None
 
 class RecipeIngredientCreateFood(RecipeIngredientBase):
     food_id: int
+    food_portion_id: Optional[int] = None
 
 class RecipeIngredientCreateSubRecipe(RecipeIngredientBase):
     sub_recipe_id: int
@@ -17,6 +20,7 @@ class RecipeIngredient(RecipeIngredientBase):
     recipe_id: int
     food: Optional[Food] = None
     sub_recipe_id: Optional[int] = None
+    food_portion_id: Optional[int] = None
 
     class Config:
         from_attributes = True

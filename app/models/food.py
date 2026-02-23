@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, Boolean
+from sqlalchemy.orm import relationship
 
 from app.models.base import Base
 
@@ -19,6 +20,10 @@ class Food(Base):
     fiber_g = Column(Float, nullable=False, default=0.0)
     water_g = Column(Float, nullable=False, default=0.0)
     
+    # --- Données de Conversion pour Ingrédients ---
+    density = Column(Float, nullable=False, default=1.0)
+    portion_weight_g = Column(Float, nullable=False, default=100.0)
+    
     # tags
     is_vegan = Column(Boolean, default=True)
     is_vegetarian = Column(Boolean, default=True)
@@ -31,3 +36,6 @@ class Food(Base):
     
     # Indicateur si cet aliment a été auto-généré via scraping sans valeurs (0 kcal)
     is_draft = Column(Boolean, default=False)
+
+    # Portions nommées (ex: "1 moyen" = 67g, "1 brin" = 2g)
+    portions = relationship("FoodPortion", back_populates="food", cascade="all, delete-orphan", lazy="selectin")

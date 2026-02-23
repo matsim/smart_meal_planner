@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import apiClient from '../api/client';
 
 interface Recipe {
@@ -13,35 +13,63 @@ interface Recipe {
 const RecipeLibrary: React.FC = () => {
     const [recipes, setRecipes] = useState<Recipe[]>([]);
     const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
+    const location = useLocation();
 
     // Scraper state
     const [scrapeUrl, setScrapeUrl] = useState('');
     const [scraping, setScraping] = useState(false);
 
     useEffect(() => {
+        setLoading(true);
         apiClient.get('/recipes/')
             .then(res => {
                 setRecipes(res.data);
             })
             .catch(err => console.error("Could not fetch recipes", err))
             .finally(() => setLoading(false));
-    }, []);
+    }, [location.key]); // Re-fetch every time we navigate to this page
 
     const handleScrape = async () => {
         if (!scrapeUrl) return;
         setScraping(true);
         try {
-            const res = await apiClient.post(`/recipes/import?url=${encodeURIComponent(scrapeUrl)}`);
-            if (res.data.success && res.data.data) {
-                // Pass scraped data via sessionStorage since it's a simple redirection
-                sessionStorage.setItem('scrapedRecipe', JSON.stringify(res.data.data));
-                window.location.href = '/recipes/new?fromScraper=true';
+            // 1. Démarrer la tâche d'extraction en asynchrone
+            const initRes = await apiClient.post(`/recipes/import?url=${encodeURIComponent(scrapeUrl)}`);
+            const taskId = initRes.data.task_id;
+
+            if (!taskId) {
+                throw new Error("Impossible d'initialiser l'extraction");
             }
+
+            // 2. Polling du statut
+            const pollInterval = setInterval(async () => {
+                try {
+                    const statusRes = await apiClient.get(`/recipes/import/status/${taskId}`);
+                    const statusInfo = statusRes.data;
+
+                    if (statusInfo.status === 'completed') {
+                        clearInterval(pollInterval);
+                        sessionStorage.setItem('scrapedRecipe', JSON.stringify(statusInfo.data));
+                        window.location.href = '/recipes/new?fromScraper=true';
+                    } else if (statusInfo.status === 'failed') {
+                        clearInterval(pollInterval);
+                        setScraping(false);
+                        alert(`Échec de l'extraction: ${statusInfo.error}`);
+                    }
+                    // Si 'pending', on continue au prochain cycle
+                } catch (err) {
+                    clearInterval(pollInterval);
+                    setScraping(false);
+                    console.error("Erreur lors du suivi du statut", err);
+                    alert("Erreur de communication avec le serveur.");
+                }
+            }, 2000); // Poll toutes les 2 secondes
+
         } catch (error) {
             console.error(error);
-            alert("Erreur lors de l'extraction de la recette.");
-        } finally {
             setScraping(false);
+            alert("Erreur lors de l'initialisation de l'extraction.");
         }
     };
 
@@ -50,6 +78,18 @@ const RecipeLibrary: React.FC = () => {
             <div className="flex justify-between items-center mb-6">
                 <h2 style={{ color: 'var(--accent-primary)' }}>Bibliothèque de Recettes</h2>
                 <Link to="/recipes/new" className="btn btn-secondary">+ Nouvelle Recette</Link>
+            </div>
+
+            {/* Search bar */}
+            <div className="mb-6">
+                <input
+                    type="text"
+                    className="input-field"
+                    placeholder="🔍 Rechercher une recette..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    style={{ width: '100%', maxWidth: '400px' }}
+                />
             </div>
 
             {/* Scraper Section (Redesigned) */}
@@ -92,30 +132,32 @@ const RecipeLibrary: React.FC = () => {
                 <div className="text-center">Chargement des recettes...</div>
             ) : (
                 <div className="week-grid">
-                    {recipes.map(recipe => (
-                        <Link
-                            to={`/recipes/${recipe.id}`}
-                            key={recipe.id}
-                            className="glass-card"
-                            style={{ padding: '1.5rem', display: 'block', textDecoration: 'none', color: 'inherit' }}
-                        >
-                            <h3 style={{ marginBottom: '0.5rem' }}>{recipe.name}</h3>
-                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem' }}>
-                                Type: {recipe.type}
-                            </p>
+                    {recipes
+                        .filter(r => !searchQuery || r.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                        .map(recipe => (
+                            <Link
+                                to={`/recipes/${recipe.id}`}
+                                key={recipe.id}
+                                className="glass-card"
+                                style={{ padding: '1.5rem', display: 'block', textDecoration: 'none', color: 'inherit' }}
+                            >
+                                <h3 style={{ marginBottom: '0.5rem' }}>{recipe.name}</h3>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+                                    Type: {recipe.type}
+                                </p>
 
-                            <div className="flex justify-between mt-auto pt-4" style={{ borderTop: '1px solid var(--border-glass)' }}>
-                                <div style={{ textAlign: 'center' }}>
-                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Indice Satiété</span>
-                                    <strong style={{ color: 'var(--accent-primary)' }}>{recipe.satiety_index ?? 'N/A'}</strong>
+                                <div className="flex justify-between mt-auto pt-4" style={{ borderTop: '1px solid var(--border-glass)' }}>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Indice Satiété</span>
+                                        <strong style={{ color: 'var(--accent-primary)' }}>{recipe.satiety_index ?? 'N/A'}</strong>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Densité (DE)</span>
+                                        <strong style={{ color: 'var(--accent-secondary)' }}>{recipe.energy_density ?? 'N/A'}</strong>
+                                    </div>
                                 </div>
-                                <div style={{ textAlign: 'center' }}>
-                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Densité (DE)</span>
-                                    <strong style={{ color: 'var(--accent-secondary)' }}>{recipe.energy_density ?? 'N/A'}</strong>
-                                </div>
-                            </div>
-                        </Link>
-                    ))}
+                            </Link>
+                        ))}
                 </div>
             )}
 

@@ -1,0 +1,10 @@
+﻿                                        <button
+                                            type="button"
+                                            className="btn btn-secondary"
+                                            style={{ padding: '0.4rem 0.5rem', fontSize: '0.8rem', opacity: isSearchingLocal[idx] ? 0.7 : 1, whiteSpace: 'nowrap' }}
+                                            onClick={() => handleSearchLocal(idx, ing.suggested_name || '')}
+                                            title="Chercher dans la base locale"
+                                            disabled={isSearchingLocal[idx]}
+                                        >
+                                            {isSearchingLocal[idx] ? 'â³...' : 'ðŸ”— Lier'}
+                                        </button>

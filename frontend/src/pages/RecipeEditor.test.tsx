@@ -32,7 +32,10 @@ describe('RecipeEditor Scraper Integration', () => {
         // 1. Préparation des fausses données scrapées
         const fakeScrapedData = {
             title: "Gâteau au chocolat test",
-            ingredients: ["200g chocolat", "3 oeufs"],
+            ingredients: [
+                { raw: "200g chocolat", quantity: 200, unit: "g", product: "chocolat" },
+                { raw: "3 oeufs", quantity: 3, unit: null, product: "oeufs" }
+            ],
             instructions: "Mélangez le tout et enfournez."
         };
         sessionStorage.setItem('scrapedRecipe', JSON.stringify(fakeScrapedData));
@@ -64,9 +67,9 @@ describe('RecipeEditor Scraper Integration', () => {
         expect(sessionStorage.getItem('scrapedRecipe')).toBeNull();
 
         // 6. Vérifier que l'ingrédient mappé est ajouté à la liste UI
-        // Chocolat exists in both the <li> and the <select> option, so we fetch all and check we have multiple instances
-        const chocolatElements = screen.getAllByText(/Chocolat/i);
-        expect(chocolatElements.length).toBeGreaterThanOrEqual(1);
-        expect(screen.getByText(/\(200\s*g\)/i)).toBeInTheDocument();
+        // Le sélecteur contient "Chocolat" et l'input quantité a "200"
+        const quantityInputs = screen.getAllByPlaceholderText("Qté") as HTMLInputElement[];
+        expect(quantityInputs.length).toBeGreaterThanOrEqual(1);
+        expect(quantityInputs[0].value).toBe("200");
     });
 });

@@ -8,32 +8,31 @@ from app.models.food import Food
 def seed_database():
     db = SessionLocal()
     
+    import json
+    import os
+    
+    seed_file_path = os.path.join(os.path.dirname(__file__), 'app', 'db', 'seed_foods.json')
+    if os.path.exists(seed_file_path):
+        print("Seeding database with real core ingredients...")
+        with open(seed_file_path, 'r', encoding='utf-8') as f:
+            foods_data = json.load(f)
+            
+        for fd in foods_data:
+            # Check if food already exists to avoid duplicates
+            existing = db.query(Food).filter(Food.name == fd['name']).first()
+            if not existing:
+                db.add(Food(**fd))
+        db.commit()
+        print("Foods seeded.")
+    else:
+        print(f"Warning: {seed_file_path} not found.")
+    
     # Check if we already have recipes
     current_count = db.query(Recipe).count()
     if current_count >= 150:
         print("Database already seeded with enough recipes.")
         db.close()
         return
-
-    print("Seeding database with demo foods and recipes...")
-
-    # Create some basic foods
-    # (Just some dummy data to avoid emptiness, in a real app this would be CIQUAL)
-    foods_data = [
-        {"name": "Poulet", "energy_kcal": 165, "proteins_g": 31, "fat_g": 3.6, "carbohydrates_g": 0},
-        {"name": "Riz", "energy_kcal": 130, "proteins_g": 2.7, "fat_g": 0.3, "carbohydrates_g": 28},
-        {"name": "Brocoli", "energy_kcal": 34, "proteins_g": 2.8, "fat_g": 0.4, "carbohydrates_g": 7},
-        {"name": "Saumon", "energy_kcal": 208, "proteins_g": 20, "fat_g": 13, "carbohydrates_g": 0},
-        {"name": "Pâtes", "energy_kcal": 131, "proteins_g": 5, "fat_g": 1, "carbohydrates_g": 25},
-        {"name": "Bifteck", "energy_kcal": 250, "proteins_g": 26, "fat_g": 15, "carbohydrates_g": 0},
-        {"name": "Pomme de terre", "energy_kcal": 77, "proteins_g": 2, "fat_g": 0.1, "carbohydrates_g": 17},
-        {"name": "Œuf", "energy_kcal": 155, "proteins_g": 13, "fat_g": 11, "carbohydrates_g": 1.1},
-    ]
-
-    for fd in foods_data:
-        db.add(Food(**fd))
-    
-    db.commit()
 
     # Create 150 recipe stubs with varied nutritional mock scores 
     # to feed the PuLP linear programming algorithm

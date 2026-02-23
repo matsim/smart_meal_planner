@@ -51,22 +51,24 @@ def calculate_recipe_nutrition(db: Session, recipe: Recipe) -> Recipe:
         recipe.satiety_index = 0.0
         return recipe
 
-    # Densité énergétique (kcal / volume g)
-    de = total_kcal / total_weight_g
-    
-    # Indice de satiété (pour l'ensemble de la recette)
-    # L'IS est dimensionné par rapport à la portion ou aux macros totales.
-    # Pour avoir un score comparable, on peut le rapporter à 100g ou 100kcal.
-    # On l'applique tel quel sur le total pour commencer (comme demandé).
-    is_score = (total_proteins_g * 1.5) + (total_fiber_g * 2.5) + (total_water_g * 0.5) - (de * 10)
-    
-    recipe.energy_density = round(de, 4)
-    recipe.satiety_index = round(is_score, 2)
-    
-    # Internal Nutrition Score (Nutriscore maison)
-    # Exemple très simplifié: IS / DE (plus IS est haut et DE est bas, meilleur est le score)
+    # Normaliser toutes les valeurs à 100g de recette finale
+    ratio = 100.0 / total_weight_g
+    prot_per_100  = total_proteins_g * ratio
+    fiber_per_100 = total_fiber_g    * ratio
+    water_per_100 = total_water_g    * ratio
+
+    # Densité énergétique en kcal par 100g (plus lisible que kcal/g)
+    de = (total_kcal / total_weight_g) * 100   # kcal / 100g
+
+    # Indice de satiété (scores per 100g, comparables entre recettes)
+    # Plage attendue : -10 → +150 environ
+    is_score = (prot_per_100 * 1.5) + (fiber_per_100 * 2.5) + (water_per_100 * 0.5) - (de * 0.1)
+
+    recipe.energy_density = round(de, 1)
+    recipe.satiety_index  = round(is_score, 1)
+
     if de > 0:
-        recipe.internal_nutrition_score = round(is_score / de, 2)
+        recipe.internal_nutrition_score = round(is_score / de * 100, 1)
     else:
         recipe.internal_nutrition_score = 0.0
 

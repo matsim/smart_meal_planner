@@ -8,7 +8,8 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
     const navItems = [
         { path: '/dashboard', label: 'Dashboard', icon: '📊' },
-        { path: '/recipes', label: 'Recipes', icon: '📖' },
+        { path: '/recipes', label: 'Recettes', icon: '📖' },
+        { path: '/foods', label: 'Ingrédients', icon: '🍎' },
         // Placeholder for future routes
         { path: '#', label: 'Meal Planner', icon: '📅' },
         { path: '#', label: 'Shopping List', icon: '🛒' },

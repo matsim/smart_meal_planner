@@ -49,6 +49,12 @@ const Onboarding: React.FC = () => {
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
+
+        if (value === "") {
+            setFormData(prev => ({ ...prev, [name]: "" }));
+            return;
+        }
+
         setFormData(prev => ({
             ...prev,
             [name]: name === 'age' || name === 'daily_meals_count' ? parseInt(value)

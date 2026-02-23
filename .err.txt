@@ -1,0 +1,37 @@
+F..                                                                      [100%]
+================================== FAILURES ===================================
+__________________________ test_merge_foods_success ___________________________
+tests\api\test_foods_merge.py:17: in test_merge_foods_success
+    recipe = Recipe(title="Salade de Tomatres", description="Test", prep_time=10)
+<string>:4: in __init__
+    ???
+venv\Lib\site-packages\sqlalchemy\orm\state.py:564: in _initialize_instance
+    with util.safe_reraise():
+venv\Lib\site-packages\sqlalchemy\util\langhelpers.py:146: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+venv\Lib\site-packages\sqlalchemy\orm\state.py:562: in _initialize_instance
+    manager.original_init(*mixed[1:], **kwargs)
+venv\Lib\site-packages\sqlalchemy\orm\decl_base.py:2139: in _declarative_constructor
+    raise TypeError(
+E   TypeError: 'title' is an invalid keyword argument for Recipe
+============================== warnings summary ===============================
+venv\Lib\site-packages\pydantic\_internal\_config.py:272
+venv\Lib\site-packages\pydantic\_internal\_config.py:272
+venv\Lib\site-packages\pydantic\_internal\_config.py:272
+venv\Lib\site-packages\pydantic\_internal\_config.py:272
+venv\Lib\site-packages\pydantic\_internal\_config.py:272
+venv\Lib\site-packages\pydantic\_internal\_config.py:272
+venv\Lib\site-packages\pydantic\_internal\_config.py:272
+  C:\Users\Mat\.gemini\antigravity\scratch\smart_meal_planner\venv\Lib\site-packages\pydantic\_internal\_config.py:272: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.6/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+tests/api/test_foods_merge.py::test_merge_foods_success
+tests/api/test_foods_merge.py::test_merge_foods_invalid_target
+tests/api/test_foods_merge.py::test_merge_foods_empty_sources
+  C:\Users\Mat\.gemini\antigravity\scratch\smart_meal_planner\venv\Lib\site-packages\httpx\_client.py:680: DeprecationWarning: The 'app' shortcut is now deprecated. Use the explicit style 'transport=WSGITransport(app=...)' instead.
+    warnings.warn(message, DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/api/test_foods_merge.py::test_merge_foods_success - TypeError: '...
+1 failed, 2 passed, 10 warnings in 0.56s
