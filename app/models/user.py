@@ -66,7 +66,7 @@ class DietaryConstraint(Base):
     __tablename__ = "dietary_constraints"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    food_id = Column(Integer, ForeignKey("foods.id"), nullable=True) # ID of specific food to exclude
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    food_id = Column(Integer, ForeignKey("foods.id"), nullable=True, index=True)  # ID of specific food to exclude
     
     user = relationship("User", back_populates="constraints")

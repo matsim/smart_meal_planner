@@ -35,7 +35,7 @@ class Food(Base):
     yield_factor = Column(Float, default=1.0) # ex: riz cru -> cuit = 3.0
     
     # Indicateur si cet aliment a été auto-généré via scraping sans valeurs (0 kcal)
-    is_draft = Column(Boolean, default=False)
+    is_draft = Column(Boolean, default=False, index=True)
 
     # Portions nommées (ex: "1 moyen" = 67g, "1 brin" = 2g)
     portions = relationship("FoodPortion", back_populates="food", cascade="all, delete-orphan", lazy="selectin")

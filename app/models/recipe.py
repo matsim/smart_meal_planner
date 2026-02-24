@@ -44,10 +44,10 @@ class RecipeIngredient(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     
-    recipe_id = Column(Integer, ForeignKey("recipes.id"), nullable=False)
-    
+    recipe_id = Column(Integer, ForeignKey("recipes.id"), nullable=False, index=True)
+
     # Soit un aliment brut, soit une sous-recette (ex: sauce)
-    food_id = Column(Integer, ForeignKey("foods.id"), nullable=True)
+    food_id = Column(Integer, ForeignKey("foods.id"), nullable=True, index=True)
     sub_recipe_id = Column(Integer, ForeignKey("recipes.id"), nullable=True)
     
     quantity_g = Column(Float, nullable=False) # Quantité utilisée dans la recette (pour la préparation standard)
