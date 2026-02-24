@@ -22,6 +22,8 @@ def _collect_raw_nutrients(db: Session, recipe: Recipe, depth: int = 0):
 
     for ingredient in recipe.ingredients:
         qty = ingredient.quantity_g
+        if qty is None or qty <= 0:
+            continue  # ingrédient sans quantité valide — ignoré silencieusement
 
         if ingredient.food_id:
             food = db.query(Food).filter(Food.id == ingredient.food_id).first()
