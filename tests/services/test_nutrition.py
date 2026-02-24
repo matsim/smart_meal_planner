@@ -50,12 +50,16 @@ def test_calculate_recipe_nutrition_simple(db_session):
     # Total Water = 255.5
     # Total Fiber = 4.4
     
-    # DE = 401.5 / 305 = 1.3164
-    assert calculated_recipe.energy_density == 1.3164
-    
-    # IS = (50.5 * 1.5) + (4.4 * 2.5) + (255.5 * 0.5) - (1.3164 * 10)
-    # = 75.75 + 11.0 + 127.75 - 13.164 = 201.336 (arrondi à 2 chiffres = 201.34)
-    assert calculated_recipe.satiety_index == 201.34
+    # La DE est calculée en kcal/100g : (401.5 / 305) * 100 = 131.6
+    assert calculated_recipe.energy_density == 131.6
+
+    # Normalisation à 100g : ratio = 100/305 = 0.3279
+    # prot_per_100  = 50.5 * 0.3279 = 16.557
+    # fiber_per_100 =  4.4 * 0.3279 =  1.443
+    # water_per_100 = 255.5 * 0.3279 = 83.770
+    # IS = (16.557 * 1.5) + (1.443 * 2.5) + (83.770 * 0.5) - (131.6 * 0.1)
+    #    = 24.836 + 3.607 + 41.885 - 13.16 = 57.2
+    assert calculated_recipe.satiety_index == 57.2
 
 def test_calculate_recipe_empty(db_session):
     recipe = Recipe(name="Empty")
