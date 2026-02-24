@@ -44,7 +44,15 @@ class Recipe(RecipeBase):
     energy_density: Optional[float] = None
     satiety_index: Optional[float] = None
     internal_nutrition_score: Optional[float] = None
-    
+    total_weight_g: Optional[float] = None
+    proteins_per_100g: Optional[float] = None
+    fat_per_100g: Optional[float] = None
+    carbs_per_100g: Optional[float] = None
+    is_vegetarian: bool = True
+    is_vegan: bool = True
+    is_gluten_free: bool = True
+    is_lactose_free: bool = True
+
     ingredients: List[RecipeIngredient] = []
 
     class Config:
