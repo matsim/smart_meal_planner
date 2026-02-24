@@ -1,5 +1,6 @@
-from typing import Any, List
+from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
@@ -8,6 +9,20 @@ from app.models.recipe import RecipeIngredient
 from app.schemas.food import Food, FoodCreate, FoodMergeRequest
 
 router = APIRouter()
+
+
+# ---------------------------------------------------------------------------
+# Schémas internes pour /match-ingredients
+# ---------------------------------------------------------------------------
+
+class _IngredientItem(BaseModel):
+    product: str
+    quantity: Optional[float] = None
+    unit: Optional[str] = None
+
+
+class _MatchIngredientsBody(BaseModel):
+    ingredients: List[_IngredientItem]
 
 @router.post("/", response_model=Food)
 def create_food(
@@ -100,6 +115,52 @@ def search_off_foods(
     """
     from app.services.openfoodfacts import search_many_food_off
     return search_many_food_off(q, limit=limit)
+
+@router.post("/match-ingredients")
+def match_ingredients_to_foods(
+    *,
+    db: Session = Depends(get_db),
+    body: _MatchIngredientsBody,
+) -> Any:
+    """
+    Pour chaque ingrédient scrappé, trouve les meilleurs aliments en base
+    et convertit la quantité en grammes.
+
+    Corps :
+      {"ingredients": [{"product": "boeuf hache", "quantity": 400, "unit": "g"}, ...]}
+
+    Réponse (liste ordonnée identiquement) :
+      [{
+        "product":      "boeuf hache",
+        "quantity_g":   400.0,           # converti en grammes, null si impossible
+        "best_match":   {"food_id": 5, "food_name": "Boeuf hache", "score": 0.95, "match_type": "exact"},
+        "alternatives": [...]            # jusqu'à 4 autres candidats
+      }]
+    """
+    from app.services.ingredient_linker import find_food_matches, convert_to_grams
+
+    results = []
+    for item in body.ingredients:
+        matches = find_food_matches(item.product, db, limit=5)
+
+        # Pour la conversion volumétrique, on prend l'aliment du meilleur match
+        best_food = None
+        if matches:
+            best_food = db.query(FoodModel).filter(
+                FoodModel.id == matches[0]["food_id"]
+            ).first()
+
+        quantity_g = convert_to_grams(item.quantity, item.unit, best_food)
+
+        results.append({
+            "product":      item.product,
+            "quantity_g":   quantity_g,
+            "best_match":   matches[0] if matches else None,
+            "alternatives": matches[1:] if len(matches) > 1 else [],
+        })
+
+    return results
+
 
 @router.get("/{food_id}", response_model=Food)
 def read_food(

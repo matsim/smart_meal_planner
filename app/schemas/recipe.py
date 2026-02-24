@@ -4,7 +4,9 @@ from app.models.recipe import RecipeType, RecipeVisibility
 from app.schemas.food import Food
 
 class RecipeIngredientBase(BaseModel):
-    quantity_g: float
+    # None autorisé : le backend calcule depuis raw_quantity + raw_unit,
+    # ou applique 100 g par défaut si la conversion est impossible.
+    quantity_g: Optional[float] = None
     raw_quantity: Optional[float] = None
     raw_unit: Optional[str] = None
 
