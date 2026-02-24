@@ -1,3 +1,4 @@
+import logging
 from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -11,6 +12,7 @@ from app.services.nutrition import calculate_recipe_nutrition
 from app.services.ingredient_linker import convert_to_grams
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 _DEFAULT_QUANTITY_G = 100.0  # portion de secours si aucune conversion possible
 
@@ -91,10 +93,18 @@ def create_recipe(
     db.commit()
     db.refresh(db_recipe)
 
-    # Calculer l'Indice de Satiété et la Densité Énergétique
-    db_recipe = calculate_recipe_nutrition(db, db_recipe)
-    db.commit()
-    db.refresh(db_recipe)
+    # Calcul nutritionnel (IS, DE, macros).
+    # Si ce calcul échoue (ex : ingrédient mal renseigné, données manquantes),
+    # la recette est déjà sauvegardée — on retourne quand même un 200
+    # avec les champs nutrition à zéro plutôt qu'un 500 générique.
+    try:
+        db_recipe = calculate_recipe_nutrition(db, db_recipe)
+        db.commit()
+        db.refresh(db_recipe)
+    except Exception as exc:
+        logger.warning("Calcul nutrition échoué pour recette %s : %s", db_recipe.id, exc)
+        db.rollback()
+        db.refresh(db_recipe)
 
     return db_recipe
 
@@ -192,10 +202,15 @@ def update_recipe(
     db.commit()
     db.refresh(recipe)
 
-    # Recalculer IS et DE
-    recipe = calculate_recipe_nutrition(db, recipe)
-    db.commit()
-    db.refresh(recipe)
+    # Recalculer IS et DE (idem create : si ça échoue, on retourne quand même la recette)
+    try:
+        recipe = calculate_recipe_nutrition(db, recipe)
+        db.commit()
+        db.refresh(recipe)
+    except Exception as exc:
+        logger.warning("Calcul nutrition échoué pour recette %s : %s", recipe.id, exc)
+        db.rollback()
+        db.refresh(recipe)
 
     return recipe
 
