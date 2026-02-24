@@ -1,3 +1,11 @@
+import sys
+from unittest.mock import MagicMock
+
+# recipe_scrapers n'est pas installable en CI → on injecte un mock avant tout import de l'app
+if "recipe_scrapers" not in sys.modules:
+    mock_rs = MagicMock()
+    sys.modules["recipe_scrapers"] = mock_rs
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

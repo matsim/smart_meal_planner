@@ -46,14 +46,76 @@ def test_generate_weekly_plan_fail_no_candidates():
 
 def test_generate_weekly_plan_fail_impossible_macros():
     candidates = create_mock_candidates() # Avg macros = 550 kcal / repas => * 21 = ~11500 kcal
-    
+
     # On demande un target délirant pour que le solveur échoue
     target_kcal = 50000.0
     target_prot = 150.0
-    
+
     result = generate_weekly_plan(
         candidates, target_kcal, target_prot, 60.0, 200.0,
         meals_per_day=3, days=7, tolerance=0.05
     )
-    
+
     assert result.success is False
+
+
+# --- Nouveaux tests ---
+
+def test_generate_weekly_plan_two_meals_per_day():
+    """Le solveur fonctionne avec 2 repas/jour (14 repas au total)."""
+    candidates = create_mock_candidates()
+    result = generate_weekly_plan(
+        candidates, target_kcal=1400.0, target_prot=100.0,
+        target_fat=50.0, target_carb=150.0,
+        meals_per_day=2, days=7, tolerance=0.30
+    )
+    assert result.success is True
+    assert len(result.meals) == 7
+    for day, meals in result.meals.items():
+        assert len(meals) == 2
+
+
+def test_generate_weekly_plan_variety_constraint():
+    """Aucune recette n'apparaît plus de 3 fois sur la semaine."""
+    candidates = create_mock_candidates()
+    result = generate_weekly_plan(
+        candidates, target_kcal=2000.0, target_prot=150.0,
+        target_fat=60.0, target_carb=215.0,
+        meals_per_day=3, days=7, tolerance=0.15
+    )
+    assert result.success is True
+
+    recipe_counts: dict = {}
+    for day_meals in result.meals.values():
+        for recipe in day_meals:
+            recipe_counts[recipe.id] = recipe_counts.get(recipe.id, 0) + 1
+
+    for recipe_id, count in recipe_counts.items():
+        assert count <= 3, f"La recette {recipe_id} apparaît {count} fois (max 3)"
+
+
+def test_generate_weekly_plan_single_candidate_fails():
+    """Un seul candidat ne peut pas satisfaire la contrainte de variété (max 3 fois)
+    pour 21 repas → le solveur doit échouer."""
+    single = [RecipeCandidate(1, "Unique", 700.0, 50.0, 25.0, 80.0, 120.0)]
+    # 7 jours * 3 repas = 21 slots, mais max 3 usages → infaisable
+    result = generate_weekly_plan(
+        single, target_kcal=2100.0, target_prot=150.0,
+        target_fat=75.0, target_carb=240.0,
+        meals_per_day=3, days=7, tolerance=0.15
+    )
+    assert result.success is False
+
+
+def test_generate_weekly_plan_five_days():
+    """Le solveur génère correctement un plan sur 5 jours (pas forcément 7)."""
+    candidates = create_mock_candidates()
+    result = generate_weekly_plan(
+        candidates, target_kcal=2000.0, target_prot=150.0,
+        target_fat=60.0, target_carb=215.0,
+        meals_per_day=3, days=5, tolerance=0.20
+    )
+    assert result.success is True
+    assert len(result.meals) == 5
+    for day, meals in result.meals.items():
+        assert len(meals) == 3
