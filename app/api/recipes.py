@@ -3,12 +3,46 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
+from app.models.food import Food as FoodModel
 from app.models.recipe import Recipe as RecipeModel
 from app.models.recipe import RecipeIngredient as IngredientModel
 from app.schemas.recipe import Recipe, RecipeCreate
 from app.services.nutrition import calculate_recipe_nutrition
+from app.services.ingredient_linker import convert_to_grams
 
 router = APIRouter()
+
+_DEFAULT_QUANTITY_G = 100.0  # portion de secours si aucune conversion possible
+
+
+def _resolve_quantity_g(ing, db: Session) -> float:
+    """
+    Détermine quantity_g pour un ingrédient food.
+
+    Priorité :
+      1. quantity_g fourni et > 0   → utilisé tel quel
+      2. raw_quantity + raw_unit    → convert_to_grams() avec densité/portion de l'aliment
+      3. Valeur de secours          → 100 g (1 portion standard)
+    """
+    if ing.quantity_g is not None and ing.quantity_g > 0:
+        return ing.quantity_g
+    food = db.query(FoodModel).filter(FoodModel.id == ing.food_id).first()
+    converted = convert_to_grams(ing.raw_quantity, ing.raw_unit, food)
+    return converted if converted is not None else _DEFAULT_QUANTITY_G
+
+
+def _validate_food_ids(ingredients_food, db: Session) -> None:
+    """Lève HTTPException 422 si un food_id référencé n'existe pas en base."""
+    for ing in (ingredients_food or []):
+        if not db.query(FoodModel).filter(FoodModel.id == ing.food_id).first():
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Aliment introuvable (id={ing.food_id}). "
+                    "Vérifiez que chaque ingrédient est lié à un aliment existant."
+                ),
+            )
+
 
 @router.post("/", response_model=Recipe)
 def create_recipe(
@@ -18,45 +52,50 @@ def create_recipe(
 ) -> Any:
     """
     Créer une nouvelle recette et calculer automatiquement ses scores IS et DE.
+    quantity_g est optionnel : si absent, il est déduit de raw_quantity + raw_unit.
     """
+    # Validation préalable des food_ids (retourne 422 descriptif avant toute écriture)
+    _validate_food_ids(recipe_in.ingredients_food, db)
+
     recipe_data = recipe_in.model_dump(exclude={"ingredients_food", "ingredients_sub"})
     db_recipe = RecipeModel(**recipe_data)
     db.add(db_recipe)
-    db.flush() # Pour avoir l'ID
-    
+    db.flush()  # Pour avoir l'ID
+
     # Ajouter les ingrédients bruts
     if recipe_in.ingredients_food:
         for ing in recipe_in.ingredients_food:
             db_ing = IngredientModel(
                 recipe_id=db_recipe.id,
                 food_id=ing.food_id,
-                quantity_g=ing.quantity_g,
+                quantity_g=_resolve_quantity_g(ing, db),
                 raw_quantity=ing.raw_quantity,
                 raw_unit=ing.raw_unit,
                 food_portion_id=ing.food_portion_id,
             )
             db.add(db_ing)
-            
+
     # Ajouter les sous-recettes
     if recipe_in.ingredients_sub:
         for ing in recipe_in.ingredients_sub:
+            qty = ing.quantity_g if (ing.quantity_g is not None and ing.quantity_g > 0) else _DEFAULT_QUANTITY_G
             db_ing = IngredientModel(
                 recipe_id=db_recipe.id,
                 sub_recipe_id=ing.sub_recipe_id,
-                quantity_g=ing.quantity_g,
+                quantity_g=qty,
                 raw_quantity=ing.raw_quantity,
-                raw_unit=ing.raw_unit
+                raw_unit=ing.raw_unit,
             )
             db.add(db_ing)
-            
+
     db.commit()
     db.refresh(db_recipe)
-    
-    # Calculer l'Indice de Satiété et la Densité Energétique
+
+    # Calculer l'Indice de Satiété et la Densité Énergétique
     db_recipe = calculate_recipe_nutrition(db, db_recipe)
     db.commit()
     db.refresh(db_recipe)
-    
+
     return db_recipe
 
 @router.get("/", response_model=List[Recipe])
@@ -119,6 +158,9 @@ def update_recipe(
     recipe.type = recipe_in.type
     recipe.visibility = recipe_in.visibility
 
+    # Validation préalable des food_ids
+    _validate_food_ids(recipe_in.ingredients_food, db)
+
     # Remplacer tous les ingrédients (delete + recreate)
     for old_ing in recipe.ingredients:
         db.delete(old_ing)
@@ -129,7 +171,7 @@ def update_recipe(
             db_ing = IngredientModel(
                 recipe_id=recipe.id,
                 food_id=ing.food_id,
-                quantity_g=ing.quantity_g,
+                quantity_g=_resolve_quantity_g(ing, db),
                 raw_quantity=ing.raw_quantity,
                 raw_unit=ing.raw_unit,
                 food_portion_id=ing.food_portion_id,
@@ -141,7 +183,7 @@ def update_recipe(
             db_ing = IngredientModel(
                 recipe_id=recipe.id,
                 sub_recipe_id=ing.sub_recipe_id,
-                quantity_g=ing.quantity_g,
+                quantity_g=ing.quantity_g if (ing.quantity_g is not None and ing.quantity_g > 0) else _DEFAULT_QUANTITY_G,
                 raw_quantity=ing.raw_quantity,
                 raw_unit=ing.raw_unit,
             )
