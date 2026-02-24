@@ -28,9 +28,14 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 
 @pytest.fixture(scope="function")
 def db_session():
-    """Crée une nouvelle base avec toutes les tables pour chaque test et la drop à la fin."""
-    import app.models # Importation explicite pour que Base connaisse les tables
-    Base.metadata.create_all(bind=engine)
+    """Crée une nouvelle base avec toutes les tables pour chaque test et la drop à la fin.
+
+    Le drop_all initial garantit un état propre même si le cleanup d'un test
+    précédent a échoué (exception non rattrapée, interruption, etc.).
+    """
+    import app.models  # Importation explicite pour que Base connaisse les tables
+    Base.metadata.drop_all(bind=engine)   # Nettoyage préventif
+    Base.metadata.create_all(bind=engine) # Schéma frais
     db = TestingSessionLocal()
     try:
         yield db
