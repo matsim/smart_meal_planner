@@ -64,18 +64,26 @@ def get_all_recipes(
     *,
     db: Session = Depends(get_db),
     skip: int = 0,
-    limit: int = 500,
+    limit: int = 100,
     search: str = None
 ) -> Any:
     """
     Récupère la liste de toutes les recettes pour la Bibliothèque Globale.
     Triées par date de création décroissante (les plus récentes en premier).
+    Retourne le header X-Total-Count pour la pagination côté client.
     """
+    from fastapi.responses import JSONResponse
+    from fastapi.encoders import jsonable_encoder
+
     query = db.query(RecipeModel)
     if search:
         query = query.filter(RecipeModel.name.ilike(f"%{search}%"))
+    total = query.count()
     recipes = query.order_by(RecipeModel.id.desc()).offset(skip).limit(limit).all()
-    return recipes
+    return JSONResponse(
+        content=jsonable_encoder(recipes),
+        headers={"X-Total-Count": str(total), "Access-Control-Expose-Headers": "X-Total-Count"},
+    )
 
 @router.get("/{recipe_id}", response_model=Recipe)
 def read_recipe(

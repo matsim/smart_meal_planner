@@ -9,8 +9,8 @@ import pytest
 # ---------------------------------------------------------------------------
 
 FOOD_BASE = {
-    "energy_kcal": 165.0, "proteins_g": 31.0, "fat_g": 3.6,
-    "carbohydrates_g": 0.0, "fiber_g": 0.0, "water_g": 65.0,
+    "energy_kcal": 250.0, "proteins_g": 20.0, "fat_g": 12.0,
+    "carbohydrates_g": 25.0, "fiber_g": 3.0, "water_g": 30.0,
 }
 
 # Profil utilisateur qui génère une cible calorique atteignable par le solveur

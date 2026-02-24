@@ -30,9 +30,21 @@ class Recipe(Base):
     author_id = Column(Integer, ForeignKey("users.id"), nullable=True) # Null = system/global
     
     # Indicateurs pré-calculés (pour 1 portion standard ou 100g)
-    energy_density = Column(Float, nullable=True) # DE: kcal / volume (g)
-    satiety_index = Column(Float, nullable=True)  # IS calculé
-    internal_nutrition_score = Column(Float, nullable=True) # Nutriscore interne
+    energy_density = Column(Float, nullable=True)          # DE: kcal / 100g
+    satiety_index = Column(Float, nullable=True)           # IS calculé / 100g
+    internal_nutrition_score = Column(Float, nullable=True)
+
+    # Macros pré-calculés (pour le solveur PuLP)
+    total_weight_g = Column(Float, nullable=True)          # Poids total cuit (g)
+    proteins_per_100g = Column(Float, nullable=True)
+    fat_per_100g = Column(Float, nullable=True)
+    carbs_per_100g = Column(Float, nullable=True)
+
+    # Flags diététiques dérivés des ingrédients
+    is_vegetarian = Column(Boolean, default=True)
+    is_vegan = Column(Boolean, default=True)
+    is_gluten_free = Column(Boolean, default=True)
+    is_lactose_free = Column(Boolean, default=True)
 
     # Relations
     author = relationship("User", back_populates="recipes")
@@ -44,10 +56,10 @@ class RecipeIngredient(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     
-    recipe_id = Column(Integer, ForeignKey("recipes.id"), nullable=False)
-    
+    recipe_id = Column(Integer, ForeignKey("recipes.id"), nullable=False, index=True)
+
     # Soit un aliment brut, soit une sous-recette (ex: sauce)
-    food_id = Column(Integer, ForeignKey("foods.id"), nullable=True)
+    food_id = Column(Integer, ForeignKey("foods.id"), nullable=True, index=True)
     sub_recipe_id = Column(Integer, ForeignKey("recipes.id"), nullable=True)
     
     quantity_g = Column(Float, nullable=False) # Quantité utilisée dans la recette (pour la préparation standard)

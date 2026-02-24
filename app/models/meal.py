@@ -8,9 +8,9 @@ class MealPlan(Base):
     __tablename__ = "meal_plans"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    
-    start_date = Column(Date, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+
+    start_date = Column(Date, nullable=False, index=True)
     end_date = Column(Date, nullable=False)
     
     # Indicateurs globaux calculés pour la semaine
@@ -30,13 +30,13 @@ class Meal(Base):
     __tablename__ = "meals"
 
     id = Column(Integer, primary_key=True, index=True)
-    plan_id = Column(Integer, ForeignKey("meal_plans.id"), nullable=False)
-    
+    plan_id = Column(Integer, ForeignKey("meal_plans.id"), nullable=False, index=True)
+
     date = Column(Date, nullable=False)
     type = Column(Enum(MealType), nullable=False)
-    
+
     # Le repas contient soit une recette complète/assemblage, soit des ingrédients isolés
-    recipe_id = Column(Integer, ForeignKey("recipes.id"), nullable=True)
+    recipe_id = Column(Integer, ForeignKey("recipes.id"), nullable=True, index=True)
     
     # Si le solveur a dû ajuster certaines portions pour fitter dans les macros
     portion_factor = Column(Float, default=1.0) 

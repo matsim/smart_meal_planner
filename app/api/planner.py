@@ -32,42 +32,50 @@ def create_weekly_plan(
     if profile.target_kcal == 0:
         raise HTTPException(status_code=400, detail="Profil métabolique incomplet.")
 
-    # 2. Filtrer les Recettes (Exclusions)
+    # 2. Filtrer les Recettes (Exclusions alimentaires + préférences diéto)
     recipes_db = db.query(RecipeModel).all()
     user_constraints = [c.food_id for c in user.constraints if c.food_id is not None]
-    
+
     valid_recipes = []
     for r in recipes_db:
-        # Check if any ingredient is in constraints
-        has_constraint = False
-        for ing in r.ingredients:
-            if ing.food_id in user_constraints:
-                has_constraint = True
-                break
-        if not has_constraint:
-            valid_recipes.append(r)
-            
-    if len(valid_recipes) < user.daily_meals_count * 2: 
-         raise HTTPException(status_code=400, detail="Pas assez de recettes valides trouvées après avoir appliqué vos exclusions (trop restrictif).")
-    
-    import random
+        # 2a. Exclusions par food_id
+        if any(ing.food_id in user_constraints for ing in r.ingredients):
+            continue
+        # 2b. Filtrage diéto via préférences utilisateur
+        if user.preferences:
+            pref = user.preferences
+            if pref.is_vegetarian  and not r.is_vegetarian:  continue
+            if pref.is_vegan       and not r.is_vegan:       continue
+            if pref.is_gluten_free and not r.is_gluten_free: continue
+            if pref.is_lactose_free and not r.is_lactose_free: continue
+        valid_recipes.append(r)
+
+    if len(valid_recipes) < user.daily_meals_count * 2:
+        raise HTTPException(status_code=400, detail="Pas assez de recettes valides trouvées après avoir appliqué vos exclusions (trop restrictif).")
+
     candidates = []
-    # Seed de variation pour couvrir différentes tailles et profils de repas
     for idx, r in enumerate(valid_recipes):
-        multiplier = 0.8 + (idx % 10) * 0.1  # de 0.8 à 1.7
-        base_kcal = 500.0 * multiplier
-        
-        # Varier la répartition pour que PuLP ait des leviers (Plats pro-prot, pro-fat, pro-carb...)
-        random.seed(r.id) # Consistance pour le même plat
-        prot_pct = random.uniform(0.15, 0.45) # 15 à 45% de pref
-        fat_pct = random.uniform(0.20, 0.40)  # 20 à 40% de fat
-        carb_pct = 1.0 - prot_pct - fat_pct
-        
-        prot = (base_kcal * prot_pct) / 4.0
-        fat = (base_kcal * fat_pct) / 9.0
-        carb = (base_kcal * carb_pct) / 4.0
-        
-        is_score = r.satiety_index or (50.0 * multiplier)
+        # Utiliser les vraies kcal/macros stockées sur la recette si disponibles
+        w = r.total_weight_g or 0.0
+        if w > 0 and r.energy_density:
+            base_kcal = w * r.energy_density / 100.0
+            prot = w * (r.proteins_per_100g or 0.0) / 100.0
+            fat  = w * (r.fat_per_100g      or 0.0) / 100.0
+            carb = w * (r.carbs_per_100g    or 0.0) / 100.0
+        else:
+            # Fallback : valeurs fictives cohérentes si la recette n'a pas encore de données
+            import random
+            multiplier = 0.8 + (idx % 10) * 0.1
+            base_kcal = 500.0 * multiplier
+            random.seed(r.id)
+            prot_pct = random.uniform(0.15, 0.45)
+            fat_pct  = random.uniform(0.20, 0.40)
+            carb_pct = 1.0 - prot_pct - fat_pct
+            prot = (base_kcal * prot_pct) / 4.0
+            fat  = (base_kcal * fat_pct)  / 9.0
+            carb = (base_kcal * carb_pct) / 4.0
+
+        is_score = r.satiety_index or 50.0
         candidates.append(RecipeCandidate(r.id, r.name, base_kcal, prot, fat, carb, is_score))
 
     # 3. Lancer le Solveur PuLP
