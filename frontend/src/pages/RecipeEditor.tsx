@@ -507,16 +507,26 @@ const RecipeEditor: React.FC = () => {
                         ing.food_id = res.data.id;
                         ing.food_name = res.data.name;
                         ing.status = 'matched';
-                    } catch (apiErr) {
+                    } catch (apiErr: any) {
                         console.error("Erreur lors de la création asynchrone du draft", apiErr);
-                        alert(`Impossible de créer l'ingrédient ${ing.suggested_name}`);
+                        const msg = apiErr?.response?.data?.detail ?? `Impossible de créer l'ingrédient "${ing.suggested_name}"`;
+                        alert(`⚠️ ${msg}`);
                         setLoading(false);
                         return;
                     }
                 }
             }
 
-            // 3. Préparer le payload de la recette
+            // 3. Vérifier que tous les ingrédients ont bien un food_id avant d'envoyer
+            const unlinked = finalIngredients.filter(ing => ing.food_id == null);
+            if (unlinked.length > 0) {
+                const names = unlinked.map(i => i.food_name || i.suggested_name || '(sans nom)').join(', ');
+                alert(`⚠️ ${unlinked.length} ingrédient(s) ne sont pas liés à un aliment de la base :\n${names}\n\nLiez-les manuellement ou supprimez-les avant d'enregistrer.`);
+                setLoading(false);
+                return;
+            }
+
+            // 4. Préparer le payload de la recette
             const payload = {
                 name,
                 description,
@@ -524,11 +534,10 @@ const RecipeEditor: React.FC = () => {
                 visibility: 'global',
                 ingredients_food: finalIngredients.map(ing => ({
                     food_id: ing.food_id!,
-                    quantity_g: ing.quantity_g || 0,
-                    raw_quantity: ing.raw_quantity !== undefined ? ing.raw_quantity : null,
+                    quantity_g: ing.quantity_g || null,
+                    raw_quantity: ing.raw_quantity ?? null,
                     raw_unit: ing.raw_unit || null,
                     food_portion_id: ing.food_portion_id ?? null,
-                    state: 'raw'
                 }))
             };
 
@@ -541,9 +550,21 @@ const RecipeEditor: React.FC = () => {
                 alert("Recette créée !");
                 navigate(`/recipes/${res.data.id}`);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert("Erreur lors de la sauvegarde.");
+            // Afficher le message détaillé retourné par le backend (422 ou 500 structuré)
+            const data = error?.response?.data;
+            if (data?.detail) {
+                let msg = `❌ ${data.detail}`;
+                if (Array.isArray(data.errors) && data.errors.length > 0) {
+                    msg += '\n\n' + data.errors
+                        .map((e: { champ: string; message: string }) => `• ${e.champ} : ${e.message}`)
+                        .join('\n');
+                }
+                alert(msg);
+            } else {
+                alert("❌ Erreur lors de la sauvegarde. Vérifiez les données et réessayez.");
+            }
         } finally {
             setLoading(false);
         }
